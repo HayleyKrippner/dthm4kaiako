@@ -24,7 +24,7 @@ x-django-config:
         POSTGRES_HOST: postgres
         POSTGRES_PORT: "5432"
         DEPLOYMENT_ENVIRONMENT_FILE: /dthm4kaiako_deployment_environment
-        DJANGO_SECRET_KEY_FILE: /run/secrets/dthm4kaiako_django_secret_key
+        DJANGO_SECRET_KEY_FILE: /run/secrets/cs-uccser-study-three_django_secret_key
         POSTGRES_DB_FILE: /run/secrets/dthm4kaiako_postgres_db
         POSTGRES_USER_FILE: /run/secrets/dthm4kaiako_postgres_user
         POSTGRES_PASSWORD_FILE: /run/secrets/dthm4kaiako_postgres_password
@@ -40,7 +40,7 @@ x-django-config:
     configs:
         - dthm4kaiako_deployment_environment
     secrets:
-        - dthm4kaiako_django_secret_key
+        - cs-uccser-study-three_django_secret_key
         - dthm4kaiako_postgres_db
         - dthm4kaiako_postgres_user
         - dthm4kaiako_postgres_password
@@ -137,7 +137,7 @@ configs:
         external: true
 
 secrets:
-    dthm4kaiako_django_secret_key:
+    cs-uccser-study-three_django_secret_key:
         external: true
     dthm4kaiako_postgres_db:
         external: true
