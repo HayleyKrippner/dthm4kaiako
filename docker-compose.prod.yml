@@ -18,9 +18,9 @@ x-disable-healthcheck:
 
 x-django-config:
     &django-config
-    image: ghcr.io/uccser/dthm4kaiako:${DTHM4KAIAKO_IMAGE_TAG}
+    image: ghcr.io/hayleykrippner/dthm4kaiako:research-study-2022
     environment:
-        DTHM4KAIAKO_DOMAIN: ${DTHM4KAIAKO_DOMAIN}
+        DTHM4KAIAKO_DOMAIN: uccser-study-three.csse.canterbury.ac.nz
         POSTGRES_HOST: postgres
         POSTGRES_PORT: "5432"
         DEPLOYMENT_ENVIRONMENT_FILE: /dthm4kaiako_deployment_environment
@@ -71,10 +71,10 @@ services:
             labels:
                 - "traefik.enable=true"
                 - "traefik.docker.network=uccser-public"
-                - "traefik.http.services.dthm4kaiako-django.loadbalancer.server.port=8000"
-                - "traefik.http.routers.dthm4kaiako-django.service=dthm4kaiako-django"
-                - "traefik.http.routers.dthm4kaiako-django.rule=${DTHM4KAIAKO_ROUTER_RULE}"
-                - "traefik.http.routers.dthm4kaiako-django.entryPoints=web"
+                - "traefik.http.services.uccser-study-three-django.loadbalancer.server.port=8000"
+                - "traefik.http.routers.uccser-study-three-django.service=dthm4kaiako-django"
+                - "traefik.http.routers.uccser-study-three-django.rule=Host(`uccser-study-three.csse.canterbury.ac.nz`)"
+                - "traefik.http.routers.uccser-study-three-django.entryPoints=web"
                 # Redirect non-www to www, only triggers in production swarm.
                 - "traefik.http.middlewares.dthm4kaiako-redirect-non-www.redirectregex.regex=^https://dthm4kaiako.ac.nz(.*)"
                 - "traefik.http.middlewares.dthm4kaiako-redirect-non-www.redirectregex.replacement=https://www.dthm4kaiako.ac.nz$${1}"
