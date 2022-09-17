@@ -1,10 +1,6 @@
 """Views for events application."""
 
-from calendar import c
-import re
-import string
 # from turtle import heading
-from unicodedata import name
 from django.views import generic
 from django.utils.timezone import now
 from django_filters.views import FilterView
@@ -19,26 +15,31 @@ from events.models import (
     Series,
     Ticket
 )
-from users.models import ( DietaryRequirement, Entity, User )
+from users.models import (
+    DietaryRequirement,
+    Entity,
+    User
+)
 from events.filters import UpcomingEventFilter, PastEventFilter
 from events.utils import create_filter_helper, organise_schedule_data
-from .forms import (EventApplicationForm,
-                    TermsAndConditionsForm, 
-                    BillingDetailsForm, 
-                    WithdrawEventApplicationForm, 
-                    ManageEventApplicationForm, 
-                    ManageEventDetailsForm,
-                    ManageEventRegistrationFormDetailsForm,
-                    ManageEventLocationForm,
-                    BuilderFormForEventsCSV,
-                    BuilderFormForEventApplicationsCSV,
-                    ParticipantTypeForm,
-                    TicketTypeForm,
-                    ContactParticipantsForm,
-                    ManageEventDetailsReadOnlyForm,
-                    ManageEventRegistrationFormDetailsReadOnlyForm,
-                    ManageEventApplicationReadOnlyForm,
-                    )
+from .forms import (
+    EventApplicationForm,
+    TermsAndConditionsForm,
+    BillingDetailsForm,
+    WithdrawEventApplicationForm,
+    ManageEventApplicationForm,
+    ManageEventDetailsForm,
+    ManageEventRegistrationFormDetailsForm,
+    ManageEventLocationForm,
+    BuilderFormForEventsCSV,
+    BuilderFormForEventApplicationsCSV,
+    ParticipantTypeForm,
+    TicketTypeForm,
+    ContactParticipantsForm,
+    ManageEventDetailsReadOnlyForm,
+    ManageEventRegistrationFormDetailsReadOnlyForm,
+    ManageEventApplicationReadOnlyForm,
+)
 from django.shortcuts import render, redirect
 from users.forms import UserUpdateDetailsForm
 from django.contrib import messages
@@ -51,6 +52,7 @@ import csv
 from django.utils.html import format_html_join
 from datetime import datetime
 from django.core.mail import send_mail
+
 
 class HomeView(generic.TemplateView):
     """View for event homepage."""
@@ -143,26 +145,23 @@ class EventDetailView(RedirectToCosmeticURLMixin, generic.DetailView):
         """
         return Event.objects.filter(published=True).prefetch_related('locations')
 
-
     def does_application_exist(self, user):
-        """Determines if the user has submitted an application to attend the event.
+        """Determine if the user has submitted an application to attend the event.
+
         The user must also be logged in to see if they have.
-        
+
         Returns:
             True if the user has an application and is logged in, otherwise False.
-        """ 
-
+        """
         return EventApplication.objects.filter(event=self.object.pk, user=user).exists() and user.is_authenticated
 
     def get_application_pk(self, user):
-        """Returns the primary key of the user's event application of the event."""
-
+        """Return the primary key of the user's event application of the event."""
         event_application_pk = 0
         if EventApplication.objects.filter(event=self.object.pk, user=user).exists():
             event_application = EventApplication.objects.get(event=self.object.pk, user=user)
             event_application_pk = event_application.pk
         return event_application_pk
-
 
     def get_context_data(self, **kwargs):
         """Provide the context data for the event view.
@@ -206,7 +205,6 @@ class EventApplicationsView(LoginRequiredMixin, generic.ListView):
     template_name = 'events/event_applications.html'
     model = EventApplication
 
-    
     def get_context_data(self, **kwargs):
         """Provide the context data for the event applictions view.
 
@@ -236,15 +234,15 @@ class EventApplicationsView(LoginRequiredMixin, generic.ListView):
 
 @login_required
 def delete_application_via_application_page(request, pk):
-    """ Allowing a user to delete an existing event application from their event applications page."""
-
+    """Allow a user to delete an existing event application from their event applications page."""
     event_application = get_object_or_404(EventApplication, pk=pk)
     event = Event.objects.get(pk=event_application.event.pk)
 
     if request.method == 'POST':
         create_deleted_event_application(event, request)
         user = event_application.user
-        # user.event_applications.filter(event_application=event_application).delete # delete event application from user
+        # delete event application from user
+        # user.event_applications.filter(event_application=event_application).delete
         event_application.delete()
         user.save()
         messages.success(request, user.event_applications)
@@ -257,15 +255,15 @@ def delete_application_via_application_page(request, pk):
 
 @login_required
 def delete_application_via_event_page(request, pk):
-    """ Allowing a user to delete an existing event application from their event applications page."""
-
+    """Allow a user to delete an existing event application from their event applications page."""
     event_application = get_object_or_404(EventApplication, pk=pk)
     event = Event.objects.get(pk=event_application.event.pk)
 
     if request.method == 'POST':
         create_deleted_event_application(event, request)
         user = event_application.user
-        # user.event_applications.filter(event_application=event_application).delete # delete event application from user
+        # delete event application from user
+        # user.event_applications.filter(event_application=event_application).delete
         event_application.delete()
         user.save()
         messages.success(request, user.event_applications)
@@ -275,64 +273,67 @@ def delete_application_via_event_page(request, pk):
 
     return render(request, 'event_details.html')
 
+
 @login_required
 def create_deleted_event_application(event, request):
-    """
-    Create and save DeletedEventApplication based on the retrieved deletion reason and/or other reason for deletion.
-    """
-
+    """Create DeletedEventApplication based on the retrieved deletion reason and/or other reason for deletion."""
     reason = request.POST['deletion_reason']
     deleted_event_application = DeletedEventApplication.objects.create(
-    deletion_reason = reason,
-    event = event
+        deletion_reason=reason,
+        event=event
     )
 
     if reason == '7':
         # Other reason
         other_reason = request.POST['other_reason_for_deletion']
         deleted_event_application = DeletedEventApplication.objects.create(
-            deletion_reason = reason,
-            event = event,
-            other_reason_for_deletion = other_reason
-    )
+            deletion_reason=reason,
+            event=event,
+            other_reason_for_deletion=other_reason
+        )
     deleted_event_application.save()
 
 
-def validate_event_application_form(event_application_form, 
-                                    user_update_details_form, 
-                                    terms_and_conditions_form, 
-                                    billing_required, 
-                                    billing_details_form,
-                                    participant_type_form
-                                    ):
-    """
-    Validates that the event application is valid.
-    Also accommodates for the billing section and dietary requirements sections to be only validated if they are needed i.e. are rended.
-    """
+def validate_event_application_form(
+            event_application_form,
+            user_update_details_form,
+            terms_and_conditions_form,
+            billing_required,
+            billing_details_form,
+            participant_type_form
+        ):
+    """Validate that the event application is valid.
 
-    if event_application_form.is_valid() and user_update_details_form.is_valid() and terms_and_conditions_form.is_valid() and (not billing_required or billing_details_form.is_valid()) and participant_type_form.is_valid():
+    Also accommodates for the billing section and dietary requirements sections
+    to be only validated if they are needed i.e. are rended.
+    """
+    if (
+            event_application_form.is_valid() and
+            user_update_details_form.is_valid() and
+            terms_and_conditions_form.is_valid() and
+            (not billing_required or billing_details_form.is_valid()) and
+            participant_type_form.is_valid()
+       ):
         return True
     else:
         return False
 
 
 def does_application_exist(user, event):
-    """
-    Returns True if event application already exists for the given user and event.
-    """
+    """Return True if event application already exists for the given user and event."""
     return user.event_applications.filter(event=event).exists()
 
 
 @login_required
 def apply_for_event(request, pk):
-    """ View for event application/registration form and saving it as an EventApplication.
+    """View for event application/registration form and saving it as an EventApplication.
 
-        request: HTTP request
-        pk: event's primary key
+    request: HTTP request
+    pk: event's primary key
 
-        We create a new application if it doesn't already exist, otherwise we allow the user to update their existing application.
+    We create a new application if it doesn't already exist, otherwise
+    we allow the user to update their existing application.
     """
-
     event = Event.objects.get(pk=pk)
     user = request.user
 
@@ -357,45 +358,64 @@ def apply_for_event(request, pk):
 
         if application_exists:
             current_application = user.event_applications.get(event=event)
-            participant_type_form =  ParticipantTypeForm(event, initial={'participant_type': current_application.participant_type.pk})            
-            event_application_form = EventApplicationForm(instance=current_application, initial={'show_emergency_contact_fields': not event.accessible_online})
+            participant_type_form = ParticipantTypeForm(
+                event,
+                initial={'participant_type': current_application.participant_type.pk}
+            )
+            event_application_form = EventApplicationForm(
+                instance=current_application,
+                initial={'show_emergency_contact_fields': not event.accessible_online}
+            )
             billing_physical_address = current_application.billing_physical_address
             billing_email_address = current_application.billing_email_address
             bill_to = current_application.bill_to
-            initial_user_data={'show_dietary_requirements': event.is_catered, 
-                            'show_medical_notes': not event.accessible_online,
-                            'mobile_phone_number': user.mobile_phone_number,
-                            'email_address': user.email_address}
         else:
-            event_application_form = EventApplicationForm(initial={'show_emergency_contact_fields': not event.accessible_online})
-            participant_type_form =  ParticipantTypeForm(initial=initial_for_participant_type)
-        
-        user_update_details_form = UserUpdateDetailsForm(instance=user, initial={'show_dietary_requirements': event.is_catered, 
-                    'show_medical_notes': not event.accessible_online
-                    }) # autoload existing event application's user data
-        
+            event_application_form = EventApplicationForm(
+                initial={'show_emergency_contact_fields': not event.accessible_online}
+            )
+            participant_type_form = ParticipantTypeForm(event)
+
+        user_update_details_form = UserUpdateDetailsForm(
+            instance=user,
+            initial={
+                'show_dietary_requirements': event.is_catered,
+                'show_medical_notes': not event.accessible_online
+            })  # autoload existing event application's user data
+
         if billing_required:
             initial_billing_data = {'billing_email_address': billing_email_address, 'bill_to': bill_to}
-            billing_details_form = BillingDetailsForm(instance=billing_physical_address, initial=initial_billing_data) # TODO: figure out how to autoload billing info
+            billing_details_form = BillingDetailsForm(
+                instance=billing_physical_address,
+                initial=initial_billing_data  # TODO: figure out how to autoload billing info
+            )
         terms_and_conditions_form = TermsAndConditionsForm(
-                initial={'I_agree_to_the_terms_and_conditions': False,
-                } # User must re-agree each time they update the form
+                # User must re-agree each time they update the form
+                initial={
+                    'I_agree_to_the_terms_and_conditions': False,
+                }
             )
 
-        
         if event.is_less_than_one_week_prior_event and event.is_catered:
-            messages.warning(request, f'Your dietary requirements may not be considered for catering due to it being too close to the event commencing. Please consider contacting us at {event.contact_email_address}')
-    
+            messages.warning(
+                request,
+                (
+                    'Your dietary requirements may not be considered for catering due to '
+                    'it being too close to the event commencing. '
+                    f'Please consider contacting us at {event.contact_email_address}'
+                )
+            )
 
     elif request.method == 'POST':
         # If creating a new application or updating existing application (as Django forms don't support PUT)
-        
-        user_update_details_form = UserUpdateDetailsForm(request.POST, instance=user, 
+
+        user_update_details_form = UserUpdateDetailsForm(
+            request.POST,
+            instance=user,
             initial={
-                'show_dietary_requirements': event.is_catered, 
+                'show_dietary_requirements': event.is_catered,
                 'show_medical_notes': not event.accessible_online
-                }
-            )
+            }
+        )
 
         if does_application_exist(user, event):
             current_application = user.event_applications.get(event=event)
@@ -403,20 +423,21 @@ def apply_for_event(request, pk):
         else:
             event_application_form = EventApplicationForm(request.POST)
 
-        participant_type_form =  ParticipantTypeForm(event, request.POST)
+        participant_type_form = ParticipantTypeForm(event, request.POST)
 
         if billing_required:
             initial_billing_data = {'billing_email_address': billing_email_address, 'bill_to': bill_to}
             billing_details_form = BillingDetailsForm(request.POST, initial=initial_billing_data)
         terms_and_conditions_form = TermsAndConditionsForm(request.POST)
 
-        if validate_event_application_form(event_application_form, 
-                                    user_update_details_form, 
-                                    terms_and_conditions_form, 
-                                    billing_required, 
-                                    billing_details_form,
-                                    participant_type_form
-                                    ):          
+        if validate_event_application_form(
+            event_application_form,
+            user_update_details_form,
+            terms_and_conditions_form,
+            billing_required,
+            billing_details_form,
+            participant_type_form
+           ):
             user.first_name = user_update_details_form.cleaned_data['first_name']
             user.last_name = user_update_details_form.cleaned_data['last_name']
             all_educational_entities = user_update_details_form.cleaned_data['educational_entities']
@@ -478,32 +499,34 @@ def apply_for_event(request, pk):
                     }
                 )
                 event_application.save()
-            
+
             else:
                 event_application, created = EventApplication.objects.update_or_create(
-                user=user, event=event,
-                defaults={
-                    'participant_type': new_participant_type,
-                    'representing': new_representing,
-                    'emergency_contact_first_name': new_emergency_contact_first_name,
-                    'emergency_contact_last_name': new_emergency_contact_last_name,
-                    'emergency_contact_relationship': new_emergency_contact_relationship,
-                    'emergency_contact_phone_number': new_emergency_contact_phone_number,
+                    user=user,
+                    event=event,
+                    defaults={
+                        'participant_type': new_participant_type,
+                        'representing': new_representing,
+                        'emergency_contact_first_name': new_emergency_contact_first_name,
+                        'emergency_contact_last_name': new_emergency_contact_last_name,
+                        'emergency_contact_relationship': new_emergency_contact_relationship,
+                        'emergency_contact_phone_number': new_emergency_contact_phone_number,
                     }
                 )
-
-                event_application.save()            
+                event_application.save()
 
             if application_exists:
                 # Update existing event application
                 messages.success(request, "Updated event application successfully")
-                return HttpResponseRedirect(reverse("events:event", kwargs={'pk': event.pk, 'slug': event.slug})) # Return to event detail page
+                # Return to event detail page
+                return HttpResponseRedirect(reverse("events:event", kwargs={'pk': event.pk, 'slug': event.slug}))
 
             else:
                 # Create new event application
                 messages.success(request, 'New event application created successfully')
-                return HttpResponseRedirect(reverse("events:event", kwargs={'pk': event.pk, 'slug': event.slug})) # Return to event detail page
-        
+                # Return to event detail page
+                return HttpResponseRedirect(reverse("events:event", kwargs={'pk': event.pk, 'slug': event.slug}))
+
         # else:
         #     messages.warning(request, 'Could not submit event application due it have invalid field(s)')
         #     context = {
@@ -531,7 +554,7 @@ def apply_for_event(request, pk):
     return render(request, 'events/apply.html', context)
 
 
-#TODO: add filter 
+# TODO: add filter
 class EventsManagementHubView(LoginRequiredMixin, generic.ListView):
     """View for a events management."""
 
@@ -550,10 +573,16 @@ class EventsManagementHubView(LoginRequiredMixin, generic.ListView):
 
         if user.is_authenticated:
             if Event.objects.filter(event_staff__pk=user.pk).exists():
-                # TODO: order these 
+                # TODO: order these
                 today = datetime.today()
-                context['events_user_is_staff_for_future'] = Event.objects.filter(event_staff__pk=user.pk, start__gte=today).order_by('name')
-                context['events_user_is_staff_for_past'] = Event.objects.filter(event_staff__pk=user.pk, start__lte=today).order_by('name')
+                context['events_user_is_staff_for_future'] = Event.objects.filter(
+                    event_staff__pk=user.pk,
+                    start__gte=today
+                ).order_by('name')
+                context['events_user_is_staff_for_past'] = Event.objects.filter(
+                    event_staff__pk=user.pk,
+                    start__lte=today
+                ).order_by('name')
                 event_csv_builder_form = BuilderFormForEventsCSV()
                 context['event_csv_builder_form'] = event_csv_builder_form
 
@@ -569,23 +598,17 @@ class EventsManagementHubView(LoginRequiredMixin, generic.ListView):
 
 
 def is_in_past_or_cancelled(event):
-    """Returns True if event is in the past or it has been cancelled."""
+    """Return True if event is in the past or it has been cancelled."""
     return event.end < now() or event.is_cancelled
 
 
 @login_required
 def manage_event(request, pk):
-    """
-    View for event management. 
-    Contains form sets for each event related object (similar to that in Admin app).
-    These can be viewed, updated (based on non-read only fields) and deleted.
-    """
-    """
-    View for event management. 
-    Contains form sets for each event related object (similar to that in Admin app).
-    These can be viewed, updated (based on non-read only fields) and deleted.
-    """
+    """View for event management.
 
+    Contains forms for each event related object (similar to that in Admin app).
+    These can be viewed, updated (based on non-read only fields) and deleted.
+    """
     event = Event.objects.get(pk=pk)
     event_applications = EventApplication.objects.filter(event=event)
     registration_form = event.registration_form
@@ -598,7 +621,9 @@ def manage_event(request, pk):
 
         if is_in_past_or_cancelled(event):
             context['manage_event_details_form'] = ManageEventDetailsReadOnlyForm(instance=event)
-            context['manage_registration_form_details_form'] = ManageEventRegistrationFormDetailsReadOnlyForm(instance=registration_form)
+            context['manage_registration_form_details_form'] = ManageEventRegistrationFormDetailsReadOnlyForm(
+                instance=registration_form
+            )
             context['applications_csv_builder_form'] = BuilderFormForEventApplicationsCSV()
             context['event_applications'] = event_applications
             context['registration_form_pk'] = registration_form.pk
@@ -609,7 +634,9 @@ def manage_event(request, pk):
             context['contact_participants_form'] = ContactParticipantsForm()
         else:
             context['manage_event_details_form'] = ManageEventDetailsForm(instance=event)
-            context['manage_registration_form_details_form'] = ManageEventRegistrationFormDetailsForm(instance=registration_form)
+            context['manage_registration_form_details_form'] = ManageEventRegistrationFormDetailsForm(
+                instance=registration_form
+            )
             context['applications_csv_builder_form'] = BuilderFormForEventApplicationsCSV()
             context['event_applications'] = event_applications
             context['registration_form_pk'] = registration_form.pk
@@ -622,18 +649,20 @@ def manage_event(request, pk):
 
 
 def user_dietary_requirements(application):
+    """Return a list of the participant's user's dietary requirements.
+
+    This is based on the event application submitted by the participant.
+    """
     return format_html_join(
         '\n',
         '<li>{}</li>',
         application.user.dietary_requirements.values_list('name'),
     )
 
+
 @login_required
 def manage_event_application(request, pk_event, pk_application):
-    """ 
-    
-    """
-
+    """View for managing event applications."""
     event_application = EventApplication.objects.get(pk=pk_application)
     event = event_application.event
     context = {
@@ -645,7 +674,6 @@ def manage_event_application(request, pk_event, pk_application):
     context['update_ticket_form'] = TicketTypeForm()
 
     user = User.objects.get(id=event_application.user.pk)
-
 
     dietary_requirements = DietaryRequirement.objects.filter(users=user)
     educational_entities = Entity.objects.filter(users=user)
@@ -679,7 +707,7 @@ def manage_event_application(request, pk_event, pk_application):
             event_application.save()
             messages.success(request, 'Event application updated successfully')
             return HttpResponseRedirect(reverse(
-                "events:manage_event_application", 
+                "events:manage_event_application",
                 kwargs={'pk_event': pk_event, 'pk_application': pk_application}
                 ))
         else:
@@ -695,8 +723,7 @@ def manage_event_application(request, pk_event, pk_application):
 # TODO: add event staff access only
 @login_required
 def manage_event_details(request, pk):
-    """ Allowing event staff to update event details as well as deleting the event if desired."""
-
+    """Allow event staff to update event details as well as deleting the event if desired."""
     event = Event.objects.get(pk=pk)
     context = {
         'event': event,
@@ -736,7 +763,8 @@ def manage_event_details(request, pk):
             all_event_staff_ids = [event_staff.id for event_staff in all_event_staff]
             event.event_staff.set(all_event_staff_ids)
 
-            # TODO: update otherside of M2M relationships for locations, sponsors, organisers, serieses and event staff!
+            # TODO: update otherside of M2M relationships for locations, sponsors,
+            # organisers, serieses and event staff!
 
             Event.objects.filter(id=event.pk).update(
                 name=updated_name,
@@ -773,10 +801,11 @@ def manage_event_details(request, pk):
 # TODO: add event staff access only
 @login_required
 def manage_event_registration_form_details(request, pk):
-    """ Allowing event staff to update event registration form details.
-    Note that registration_form is the RegistrationForm object (as per the model) and
-    registration_form_details_form is a Form object (for UI)."""
+    """Allow event staff to update event registration form details.
 
+    Note that registration_form is the RegistrationForm object (as per the model) and
+    registration_form_details_form is a Form object (for UI).
+    """
     registration_form = RegistrationForm.objects.get(pk=pk)
     event = registration_form.event
     context = {
@@ -818,8 +847,7 @@ def manage_event_registration_form_details(request, pk):
 # TODO: add event staff access only
 @login_required
 def manage_event_location_details(request, pk):
-    """ Allowing event staff to update event location details."""
-
+    """Allow event staff to update event location details."""
     location = Location.objects.get(pk=pk)
     event = location.event  # TODO: check this is correct
     context = {
@@ -865,6 +893,11 @@ def manage_event_location_details(request, pk):
 
 
 def convertStringListToOneString(listToConvert):
+    """Convert list to string.
+
+    Returns:
+        A string of values separated by &'s.
+    """
     if len(listToConvert) == 1:
         return listToConvert[0]
     else:
@@ -883,8 +916,7 @@ def convertStringListToOneString(listToConvert):
 # TODO: add staff and admin permissions
 @login_required
 def generate_event_csv(request):
-    """Generates a custom CSV of events' data"""
-
+    """Generate a custom CSV of events' data."""
     if request.method == 'POST':
         builderFormForEventsCSV = BuilderFormForEventsCSV(request.POST)
         if builderFormForEventsCSV.is_valid():
@@ -1031,8 +1063,7 @@ def generate_event_csv(request):
 # TODO: add staff and admin permissions
 @login_required
 def generate_event_applications_csv(request, pk):
-    """Generates a custom CSV of event applications' data"""
-
+    """Generate a custom CSV of event applications' data."""
     event = Event.objects.get(pk=pk)
 
     if request.method == 'POST':
@@ -1179,8 +1210,7 @@ def generate_event_applications_csv(request, pk):
 # TODO: add staff and admin permissions
 @login_required
 def generate_event_dietary_requirement_counts_csv(request, pk):
-    """Generates a custom CSV of event dietary requirement counts data"""
-
+    """Generate a custom CSV of event dietary requirement counts data."""
     event = Event.objects.get(pk=pk)
 
     heading_row = ["event name", "dietary requirements", "counts"]
@@ -1226,7 +1256,7 @@ def generate_event_dietary_requirement_counts_csv(request, pk):
 # TODO: add staff and admin permissions
 @login_required
 def mark_all_participants_as_paid(request, pk):
-    """Bulk mark all event applications as being paid for for a given event"""
+    """Bulk mark all event applications as being paid for for a given event."""
     event_id = pk
     event = Event.objects.get(id=event_id)
     event_applications = [EventApplication.objects.filter(event=event)]
@@ -1248,8 +1278,7 @@ def mark_all_participants_as_paid(request, pk):
 # TODO: add staff permission for this
 @login_required
 def publish_event(request, pk):
-    """Publish event as event staff"""
-
+    """Publish event as event staff."""
     event_id = pk
     event_query_set = Event.objects.filter(id=event_id)
     event = Event.objects.get(id=event_id)
@@ -1270,7 +1299,7 @@ def publish_event(request, pk):
 # TODO: add staff permission for this
 @login_required
 def cancel_event(request, pk):
-    """Cancel event as event staff"""
+    """Cancel event as event staff."""
     event_id = pk
     event = Event.objects.filter(id=event_id)
     event.update(is_cancelled=True)
@@ -1283,7 +1312,7 @@ def cancel_event(request, pk):
 # TODO: add staff permission for this
 @login_required
 def create_new_ticket(request, pk):
-    """Cancel event as event staff"""
+    """Cancel event as event staff."""
     event = Event.objects.get(pk=pk)
 
     # TODO: validate name and price!
@@ -1326,8 +1355,9 @@ def create_new_ticket(request, pk):
 @login_required
 def update_ticket(request, event_pk, ticket_pk):
     """Update event ticket type.
-    Note that we cannot immediately update this specific ticket as it may be being used for other events as well."""
 
+    Note that we cannot immediately update this specific ticket as it may be being used for other events as well.
+    """
     event = Event.objects.get(pk=event_pk)
     old_ticket = Ticket.objects.get(pk=ticket_pk)
 
@@ -1360,7 +1390,9 @@ def update_ticket(request, event_pk, ticket_pk):
 @login_required
 def delete_ticket(request, event_pk, ticket_pk):
     """Delete event ticket type.
-    We cannot immediately delete this specific ticket as it may be being used for other events as well."""
+
+    We cannot immediately delete this specific ticket as it may be being used for other events as well.
+    """
     event = Event.objects.get(pk=event_pk)
     ticket = get_object_or_404(Ticket, id=ticket_pk)
 
@@ -1384,7 +1416,6 @@ MESSAGE_TEMPLATE = "{message}\n\n-----\nMessage sent from {user} ({email})"
 @login_required
 def email_participants(request, event_pk):
     """Send bulk email to all event participants as event staff."""
-
     if request.method == 'POST':
         contact_participants_form = ContactParticipantsForm(request.POST)
         if contact_participants_form.is_valid():
@@ -1416,8 +1447,10 @@ def email_participants(request, event_pk):
                 participants = [application.user for application in applications]
                 send_to_emails += [participant.email for participant in participants]
                 custom_message = "pending event applicant"
-            if (contact_participants_form.cleaned_data['send_to_approved_participants'] is True
-                and contact_participants_form.cleaned_data['send_to_pending_applicants'] is True):
+            if (
+                contact_participants_form.cleaned_data['send_to_approved_participants'] is True and
+                contact_participants_form.cleaned_data['send_to_pending_applicants'] is True
+               ):
                 custom_message = "event applicant"
 
             total_participants = len(send_to_emails)
