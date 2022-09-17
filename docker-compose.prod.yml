@@ -24,7 +24,7 @@ x-django-config:
         POSTGRES_HOST: postgres
         POSTGRES_PORT: "5432"
         DEPLOYMENT_ENVIRONMENT_FILE: /uccser-study-three_deployment_environment
-        DJANGO_SECRET_KEY_FILE: /run/secrets/cs-uccser-study-three_django_secret_key
+        DJANGO_SECRET_KEY_FILE: /run/secrets/uccser-study-three_django_secret_key
         POSTGRES_DB_FILE: /run/secrets/uccser-study-three_postgres_db
         POSTGRES_USER_FILE: /run/secrets/uccser-study-three_postgres_user
         POSTGRES_PASSWORD_FILE: /run/secrets/uccser-study-three_postgres_password
