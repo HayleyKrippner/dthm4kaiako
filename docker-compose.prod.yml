@@ -23,36 +23,36 @@ x-django-config:
         DTHM4KAIAKO_DOMAIN: uccser-study-three.csse.canterbury.ac.nz
         POSTGRES_HOST: postgres
         POSTGRES_PORT: "5432"
-        DEPLOYMENT_ENVIRONMENT_FILE: /dthm4kaiako_deployment_environment
+        DEPLOYMENT_ENVIRONMENT_FILE: /uccser-study-three_deployment_environment
         DJANGO_SECRET_KEY_FILE: /run/secrets/cs-uccser-study-three_django_secret_key
-        POSTGRES_DB_FILE: /run/secrets/dthm4kaiako_postgres_db
-        POSTGRES_USER_FILE: /run/secrets/dthm4kaiako_postgres_user
-        POSTGRES_PASSWORD_FILE: /run/secrets/dthm4kaiako_postgres_password
-        MAILGUN_API_KEY_FILE: /run/secrets/dthm4kaiako_mailgun_api_key
-        GOOGLE_DRIVE_API_KEY_FILE: /run/secrets/dthm4kaiako_google_drive_api_key
-        GOOGLE_MAPS_API_KEY_FILE: /run/secrets/dthm4kaiako_google_maps_api_key
-        GOOGLE_APPLICATION_CREDENTIALS: /run/secrets/dthm4kaiako_google_service_account
-        GOOGLE_CLOUD_STORAGE_BUCKET_MEDIA_NAME_FILE: /run/secrets/dthm4kaiako_google_cloud_storage_bucket_media_name
-        SAMPLE_DATA_ADMIN_PASSWORD_FILE: /run/secrets/dthm4kaiako_sample_data_admin_password
-        SAMPLE_DATA_USER_PASSWORD_FILE: /run/secrets/dthm4kaiako_sample_data_user_password
-        RECAPTCHA_PUBLIC_KEY_FILE: /run/secrets/dthm4kaiako_recaptcha_public_key
-        RECAPTCHA_PRIVATE_KEY_FILE: /run/secrets/dthm4kaiako_recaptcha_private_key
+        POSTGRES_DB_FILE: /run/secrets/uccser-study-three_postgres_db
+        POSTGRES_USER_FILE: /run/secrets/uccser-study-three_postgres_user
+        POSTGRES_PASSWORD_FILE: /run/secrets/uccser-study-three_postgres_password
+        MAILGUN_API_KEY_FILE: /run/secrets/uccser-study-three_mailgun_api_key
+        GOOGLE_DRIVE_API_KEY_FILE: /run/secrets/uccser-study-three_google_drive_api_key
+        GOOGLE_MAPS_API_KEY_FILE: /run/secrets/uccser-study-three_google_maps_api_key
+        GOOGLE_APPLICATION_CREDENTIALS: /run/secrets/uccser-study-three_google_service_account
+        GOOGLE_CLOUD_STORAGE_BUCKET_MEDIA_NAME_FILE: /run/secrets/uccser-study-three_google_cloud_storage_bucket_media_name
+        SAMPLE_DATA_ADMIN_PASSWORD_FILE: /run/secrets/uccser-study-three_sample_data_admin_password
+        SAMPLE_DATA_USER_PASSWORD_FILE: /run/secrets/uccser-study-three_sample_data_user_password
+        RECAPTCHA_PUBLIC_KEY_FILE: /run/secrets/uccser-study-three_recaptcha_public_key
+        RECAPTCHA_PRIVATE_KEY_FILE: /run/secrets/uccser-study-three_recaptcha_private_key
     configs:
-        - dthm4kaiako_deployment_environment
+        - uccser-study-three_deployment_environment
     secrets:
-        - cs-uccser-study-three_django_secret_key
-        - dthm4kaiako_postgres_db
-        - dthm4kaiako_postgres_user
-        - dthm4kaiako_postgres_password
-        - dthm4kaiako_mailgun_api_key
-        - dthm4kaiako_google_drive_api_key
-        - dthm4kaiako_google_maps_api_key
-        - dthm4kaiako_google_service_account
-        - dthm4kaiako_google_cloud_storage_bucket_media_name
-        - dthm4kaiako_sample_data_admin_password
-        - dthm4kaiako_sample_data_user_password
-        - dthm4kaiako_recaptcha_public_key
-        - dthm4kaiako_recaptcha_private_key
+        - uccser-study-three_django_secret_key
+        - uccser-study-three_postgres_db
+        - uccser-study-three_postgres_user
+        - uccser-study-three_postgres_password
+        - uccser-study-three_mailgun_api_key
+        - uccser-study-three_google_drive_api_key
+        - uccser-study-three_google_maps_api_key
+        - uccser-study-three_google_service_account
+        - uccser-study-three_google_cloud_storage_bucket_media_name
+        - uccser-study-three_sample_data_admin_password
+        - uccser-study-three_sample_data_user_password
+        - uccser-study-three_recaptcha_public_key
+        - uccser-study-three_recaptcha_private_key
 
 # -----------------------------------------------------------------------------
 
@@ -72,13 +72,9 @@ services:
                 - "traefik.enable=true"
                 - "traefik.docker.network=uccser-public"
                 - "traefik.http.services.uccser-study-three-django.loadbalancer.server.port=8000"
-                - "traefik.http.routers.uccser-study-three-django.service=dthm4kaiako-django"
+                - "traefik.http.routers.uccser-study-three-django.service=uccser-study-three-django"
                 - "traefik.http.routers.uccser-study-three-django.rule=Host(`uccser-study-three.csse.canterbury.ac.nz`)"
                 - "traefik.http.routers.uccser-study-three-django.entryPoints=web"
-                # Redirect non-www to www, only triggers in production swarm.
-                - "traefik.http.middlewares.dthm4kaiako-redirect-non-www.redirectregex.regex=^https://dthm4kaiako.ac.nz(.*)"
-                - "traefik.http.middlewares.dthm4kaiako-redirect-non-www.redirectregex.replacement=https://www.dthm4kaiako.ac.nz$${1}"
-                - "traefik.http.middlewares.dthm4kaiako-redirect-non-www.redirectregex.permanent=true"
         networks:
             - uccser-public
             - backend
@@ -119,13 +115,13 @@ services:
             restart_policy:
                 condition: on-failure
         environment:
-            POSTGRES_DB_FILE: /run/secrets/dthm4kaiako_postgres_db
-            POSTGRES_USER_FILE: /run/secrets/dthm4kaiako_postgres_user
-            POSTGRES_PASSWORD_FILE: /run/secrets/dthm4kaiako_postgres_password
+            POSTGRES_DB_FILE: /run/secrets/uccser-study-three_postgres_db
+            POSTGRES_USER_FILE: /run/secrets/uccser-study-three_postgres_user
+            POSTGRES_PASSWORD_FILE: /run/secrets/uccser-study-three_postgres_password
         secrets:
-            - dthm4kaiako_postgres_db
-            - dthm4kaiako_postgres_user
-            - dthm4kaiako_postgres_password
+            - uccser-study-three_postgres_db
+            - uccser-study-three_postgres_user
+            - uccser-study-three_postgres_password
         networks:
             - backend
         volumes:
@@ -133,35 +129,35 @@ services:
             - postgres-data-backups:/backups:z
 
 configs:
-    dthm4kaiako_deployment_environment:
+    uccser-study-three_deployment_environment:
         external: true
 
 secrets:
-    cs-uccser-study-three_django_secret_key:
+    uccser-study-three_django_secret_key:
         external: true
-    dthm4kaiako_postgres_db:
+    uccser-study-three_postgres_db:
         external: true
-    dthm4kaiako_postgres_user:
+    uccser-study-three_postgres_user:
         external: true
-    dthm4kaiako_postgres_password:
+    uccser-study-three_postgres_password:
         external: true
-    dthm4kaiako_mailgun_api_key:
+    uccser-study-three_mailgun_api_key:
         external: true
-    dthm4kaiako_google_drive_api_key:
+    uccser-study-three_google_drive_api_key:
         external: true
-    dthm4kaiako_google_maps_api_key:
+    uccser-study-three_google_maps_api_key:
         external: true
-    dthm4kaiako_google_service_account:
+    uccser-study-three_google_service_account:
         external: true
-    dthm4kaiako_google_cloud_storage_bucket_media_name:
+    uccser-study-three_google_cloud_storage_bucket_media_name:
         external: true
-    dthm4kaiako_sample_data_admin_password:
+    uccser-study-three_sample_data_admin_password:
         external: true
-    dthm4kaiako_sample_data_user_password:
+    uccser-study-three_sample_data_user_password:
         external: true
-    dthm4kaiako_recaptcha_public_key:
+    uccser-study-three_recaptcha_public_key:
         external: true
-    dthm4kaiako_recaptcha_private_key:
+    uccser-study-three_recaptcha_private_key:
         external: true
 
 networks:
