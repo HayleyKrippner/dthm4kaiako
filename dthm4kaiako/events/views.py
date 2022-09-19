@@ -585,7 +585,6 @@ class EventsManagementHubView(LoginRequiredMixin, generic.ListView):
                 ).order_by('name')
                 event_csv_builder_form = BuilderFormForEventsCSV()
                 context['event_csv_builder_form'] = event_csv_builder_form
-
         return context
 
     def get_queryset(self):
@@ -620,7 +619,7 @@ def manage_event(request, pk):
     if not can_view_event_management_content(request, event):
         messages.warning(
             request,
-            "You are not a staff member of that event. " +
+            "You are not a staff member of that event." +
             "Only event staff members can view information about their events."
         )
         return HttpResponseRedirect(reverse("events:events_management_hub"))
@@ -684,7 +683,7 @@ def manage_event_application(request, pk_event, pk_application):
     if not can_view_event_management_content(request, event):
         messages.warning(
             request,
-            "You are not a staff member of that event. " +
+            "You are not a staff member of that event." +
             "Only event staff members can view information about their events."
         )
         return HttpResponseRedirect(reverse("events:events_management_hub"))
@@ -753,7 +752,7 @@ def manage_event_details(request, pk):
     if not can_view_event_management_content(request, event):
         messages.warning(
             request,
-            "You are not a staff member of that event. " +
+            "You are not a staff member of that event." +
             "Only event staff members can view information about their events."
         )
         return HttpResponseRedirect(reverse("events:events_management_hub"))
@@ -845,7 +844,7 @@ def manage_event_registration_form_details(request, pk):
     if not can_view_event_management_content(request, event):
         messages.warning(
             request,
-            "You are not a staff member of that event. " +
+            "You are not a staff member of that event." +
             "Only event staff members can view information about their events."
         )
         return HttpResponseRedirect(reverse("events:events_management_hub"))
@@ -915,7 +914,7 @@ def generate_event_csv(request):
     if not can_view_event_management_content(request, event):
         messages.warning(
             request,
-            "You are not a staff member of that event. " +
+            "You are not a staff member of that event." +
             "Only event staff members can view information about their events."
         )
         return HttpResponseRedirect(reverse("events:events_management_hub"))
@@ -1072,7 +1071,7 @@ def generate_event_applications_csv(request, pk):
     if not can_view_event_management_content(request, event):
         messages.warning(
             request,
-            "You are not a staff member of that event. " +
+            "You are not a staff member of that event." +
             "Only event staff members can view information about their events."
         )
         return HttpResponseRedirect(reverse("events:events_management_hub"))
@@ -1227,7 +1226,7 @@ def generate_event_dietary_requirement_counts_csv(request, pk):
     if not can_view_event_management_content(request, event):
         messages.warning(
             request,
-            "You are not a staff member of that event. " +
+            "You are not a staff member of that event." +
             "Only event staff members can view information about their events."
         )
         return HttpResponseRedirect(reverse("events:events_management_hub"))
@@ -1283,7 +1282,7 @@ def mark_all_participants_as_paid(request, pk):
     if not can_view_event_management_content(request, event):
         messages.warning(
             request,
-            "You are not a staff member of that event. " +
+            "You are not a staff member of that event." +
             "Only event staff members can view information about their events."
         )
         return HttpResponseRedirect(reverse("events:events_management_hub"))
@@ -1313,7 +1312,7 @@ def publish_event(request, pk):
     if not can_view_event_management_content(request, event):
         messages.warning(
             request,
-            "You are not a staff member of that event. " +
+            "You are not a staff member of that event." +
             "Only event staff members can view information about their events."
         )
         return HttpResponseRedirect(reverse("events:events_management_hub"))
@@ -1342,7 +1341,7 @@ def cancel_event(request, pk):
     if not can_view_event_management_content(request, event_obj):
         messages.warning(
             request,
-            "You are not a staff member of that event. " +
+            "You are not a staff member of that event." +
             "Only event staff members can view information about their events."
         )
         return HttpResponseRedirect(reverse("events:events_management_hub"))
@@ -1363,7 +1362,7 @@ def create_new_ticket(request, pk):
     if not can_view_event_management_content(request, event):
         messages.warning(
             request,
-            "You are not a staff member of that event. " +
+            "You are not a staff member of that event." +
             "Only event staff members can view information about their events."
         )
         return HttpResponseRedirect(reverse("events:events_management_hub"))
@@ -1417,7 +1416,7 @@ def update_ticket(request, event_pk, ticket_pk):
     if not can_view_event_management_content(request, event):
         messages.warning(
             request,
-            "You are not a staff member of that event. " +
+            "You are not a staff member of that event." +
             "Only event staff members can view information about their events."
         )
         return HttpResponseRedirect(reverse("events:events_management_hub"))
@@ -1460,7 +1459,7 @@ def delete_ticket(request, event_pk, ticket_pk):
     if not can_view_event_management_content(request, event):
         messages.warning(
             request,
-            "You are not a staff member of that event. " +
+            "You are not a staff member of that event." +
             "Only event staff members can view information about their events."
         )
         return HttpResponseRedirect(reverse("events:events_management_hub"))
@@ -1489,7 +1488,7 @@ def email_participants(request, event_pk):
     if not can_view_event_management_content(request, event):
         messages.warning(
             request,
-            "You are not a staff member of that event. " +
+            "You are not a staff member of that event." +
             "Only event staff members can view information about their events."
         )
         return HttpResponseRedirect(reverse("events:events_management_hub"))
