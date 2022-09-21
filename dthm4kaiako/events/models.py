@@ -16,6 +16,8 @@ from utils.new_zealand_regions import REGION_CHOICES, REGION_CANTERBURY
 import datetime
 import re
 
+DATETIME_HELP_TEXT = "Desired format is YYYY-MM-DD hh:mm:ss, e.g. 2022-06-09 11:30:00 (9th May 2022 at 11.30am)"
+
 
 class Location(models.Model):
     """Model for a physical location."""
@@ -123,7 +125,7 @@ class Series(models.Model):
         verbose_name_plural = "series"
 
 
-class Ticket(models.Model):
+class TicketType(models.Model):
     """Model for event ticket.
 
     For example: event staff, facilitator, teacher, student, with
@@ -161,12 +163,15 @@ class Event(models.Model):
     """Model for an event."""
 
     name = models.CharField(max_length=200)
-    description = RichTextUploadingField()
+    description = RichTextUploadingField(
+        help_text="This is the description that will appear on this event's page that participants will view.")
     slug = AutoSlugField(populate_from='get_short_name', always_update=True, null=True)
     # TODO: Only allow publishing if start and end are not null
     published = models.BooleanField(default=False)
-    show_schedule = models.BooleanField(default=False)
-    featured = models.BooleanField(default=False)
+    show_schedule = models.BooleanField(
+        default=False,
+        help_text="Select if you would like to show this event's schedule to prospective event participants.")
+    featured = models.BooleanField(default=False, help_text="Select if this event is a featured event.")
     REGISTRATION_TYPE_REGISTER = 1
     REGISTRATION_TYPE_APPLY = 2
     REGISTRATION_TYPE_EXTERNAL = 3
@@ -180,12 +185,17 @@ class Event(models.Model):
     registration_type = models.PositiveSmallIntegerField(
         choices=REGISTRATION_TYPE_CHOICES,
         default=REGISTRATION_TYPE_REGISTER,
+        help_text="Register type events will not require you to " +
+        "approve or reject event reigstration forms.\n\n" +
+        "Apply type events require you to approve event " +
+        "applications in order for a participant to be attending this event."
     )
     registration_link = models.URLField(
         blank=True,
         null=True,
         help_text=(
-            "Optional. This is a link to an external location that "
+            "Only required when the event registration type is 'external'. \n\n" +
+            "This is a link to an external location that "
             "will gather event applications' information e.g. Google Form"
         )
     )
@@ -193,32 +203,35 @@ class Event(models.Model):
     start = models.DateTimeField(
         blank=True,
         null=True,
-        help_text="Desired format is YYYY-MM-DD hh:mm:ss, e.g. 2022-06-09 11:30:00 (9th May 2022 at 11.30am)"
+        help_text=DATETIME_HELP_TEXT
     )
     # TODO: Cannot be null if published or event applications exist
     end = models.DateTimeField(
         blank=True,
         null=True,
-        help_text="Desired format is YYYY-MM-DD hh:mm:ss, e.g. 2022-06-09 11:30:00 (9th May 2022 at 11.30am)"
+        help_text=DATETIME_HELP_TEXT
     )
     accessible_online = models.BooleanField(
         default=False,
-        help_text='Select if this event will be attended online'
+        help_text='Select if this participants will be attending this online e.g. Zoom'
     )
     locations = models.ManyToManyField(
         Location,
         related_name='events',
         blank=True,
+        help_text="To select multiple event locations, hold CONTROL and click to select the locations."
     )
     sponsors = models.ManyToManyField(
         Entity,
         related_name='sponsored_events',
         blank=True,
+        help_text="To select multiple event sponsors, hold CONTROL and click to select the sponsors."
     )
     organisers = models.ManyToManyField(
         Entity,
         related_name='events',
         blank=True,
+        help_text="To select multiple event organisers, hold CONTROL and click to select the sponsors."
     )
     series = models.ForeignKey(
         Series,
@@ -226,23 +239,27 @@ class Event(models.Model):
         related_name='events',
         null=True,
         blank=True,
+        help_text="Optional. Select the series the event is a part of if it applies."
     )
     is_catered = models.BooleanField(
         default=False,
         null=False,
         blank=False,
-        help_text='Select if food will be provided at this event'
+        help_text="Select if food will be provided at this event. " +
+        "Participants will be ask for their dietary requirements when registering/applying"
     )
     contact_email_address = models.EmailField(
         max_length=150,
         blank=False,
         null=False,
         default='',
+        help_text="The email which event participants can contact you via."
     )
     event_staff = models.ManyToManyField(
         User,
         related_name='events',
         blank=True,
+        help_text="To select multiple event staff members, hold CONTROL and click to select the individuals."
     )
     is_cancelled = models.BooleanField(
         default=False,
@@ -251,22 +268,11 @@ class Event(models.Model):
     )
     # TODO: add defaults that are free upon creation
     ticket_types = models.ManyToManyField(
-        Ticket,
+        TicketType,
         related_name='events',
         blank=True,
+        help_text="The ticket types that will be available for event participants to choose from."
     )
-
-    def is_free(self):
-        """Determine whether the event is free or not.
-
-        This is based on the prices of the event's tickets.
-        If these are all free tickets then the event is considered to be free.
-        """
-        free = True
-        for ticket_type in self.ticket_types:
-            if ticket_type.cost != 0.0:
-                free = False
-        return free
 
     # TODO: Add validation that if no locations, then accessible_online must be True
     # See: https://docs.djangoproject.com/en/dev/ref/signals/#django.db.models.signals.m2m_changed
@@ -523,6 +529,19 @@ class Event(models.Model):
 
         ordering = ['start', 'end']
 
+    @property
+    def is_free(self):
+        """Determine whether the event is free or not.
+
+        This is based on the prices of the event's tickets.
+        If these are all free tickets then the event is considered to be free.
+        """
+        free = True
+        for ticket_type in self.ticket_types.all():
+            if ticket_type.price != 0.0:
+                free = False
+        return free
+
 
 class Session(models.Model):
     """Model for an event session."""
@@ -531,8 +550,8 @@ class Session(models.Model):
     description = RichTextUploadingField(blank=True)
     url = models.URLField(blank=True)
     url_label = models.CharField(max_length=200, blank=True)
-    start = models.DateTimeField()
-    end = models.DateTimeField()
+    start = models.DateTimeField(help_text=DATETIME_HELP_TEXT)
+    end = models.DateTimeField(help_text=DATETIME_HELP_TEXT)
     event = models.ForeignKey(
         Event,
         on_delete=models.CASCADE,
@@ -662,7 +681,7 @@ class EventApplication(models.Model):
         default=PENDING,
     )
     participant_type = models.ForeignKey(
-        Ticket,
+        TicketType,
         on_delete=models.CASCADE,
         related_name='event_applications',
         null=True,
@@ -872,9 +891,19 @@ TERMS_AND_CONDITIONS_DEFAULT = (
 class RegistrationForm(models.Model):
     """Model for a registration form."""
 
-    open_datetime = models.DateTimeField(null=True, blank=True)
-    close_datetime = models.DateTimeField(null=True, blank=True)
-    terms_and_conditions = RichTextUploadingField(default=TERMS_AND_CONDITIONS_DEFAULT)
+    open_datetime = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="This is the date and time that participants " +
+        "can begin registering for this event.\n\n" + DATETIME_HELP_TEXT)
+    close_datetime = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="This is the date and time that participants " +
+        "registerations close for this event.\n\n" + DATETIME_HELP_TEXT)
+    terms_and_conditions = RichTextUploadingField(
+        default=TERMS_AND_CONDITIONS_DEFAULT,
+        help_text="Event participants must agree to this to register/apply for this event.")
     event = models.OneToOneField(
         Event,
         on_delete=models.CASCADE,

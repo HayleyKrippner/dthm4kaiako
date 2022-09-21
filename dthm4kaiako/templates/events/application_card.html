@@ -25,8 +25,8 @@
                 </h6>
                 <br>
                 {% if event_application.event.is_cancelled %}
-                <label style="background-color:rgb(140, 0, 0); color:white; font-size: medium; border-radius: 5px; padding-left: 12px; padding-right: 12px; padding-top: 8px; padding-bottom: 8px;">
-                    Cancelled
+                <label style="background-color:rgb(255, 198, 198); color:black; font-size: medium; border-radius: 8px; padding-left: 12px; padding-right: 12px; padding-top: 12px; padding-bottom: 12px;">
+                    <b>Cancelled</b>
                 </label>
             {% endif %}
             </div>
@@ -64,7 +64,7 @@
                                 Are you sure you want to withdraw your application to attend <b>{{event_application.event.name}}</b>?
                                 </div>
                                 <div class="modal-footer" style="justify-content:center">
-                                    <form action="{% url 'events:delete_application_via_application_page' event_application.id %}" method="post">
+                                    <form action="{% url 'events:delete_application_via_application_page' event_application.pk %}" method="post">
                                         {% csrf_token %}
                                         {% crispy withdraw_event_application_form %}
                                         <div class="row" style="margin-left: 0; margin-right: 0; display: flex; justify-content: space-between">

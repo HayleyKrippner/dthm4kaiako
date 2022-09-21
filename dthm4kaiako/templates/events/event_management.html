@@ -7,10 +7,14 @@
 {% block page_heading %}
 
     <div>
-        <h2 style="padding-top: 20px">                    
-            <a href="{{ event.get_absolute_url }}" style="text-decoration: none;">
+        <h2 style="padding-top: 20px">
+            {% if event.published %}              
+                <a href="{{ event.get_absolute_url }}" style="text-decoration: none;">
+                    {{ event.name }}
+                </a>
+            {% else %}
                 {{ event.name }}
-            </a>
+            {% endif %}
         </h2>
     </div>
 
@@ -19,45 +23,54 @@
 {% block content %}
     <div>
 
-        <div style="padding-bottom: 40px;">
-            <div class="float-left">
+        <div class="row" style="padding-bottom: 20px; margin-left: 0px;">
+            <div class="float-left" style="margin-right: 20px;">
                 {% if event.is_cancelled == True %} 
-                    <label style="background-color:rgb(140, 0, 0); color:white; font-size: medium; border-radius: 8px; padding-left: 12px; padding-right: 12px; padding-top: 10px; padding-bottom: 10px;">
-                        Cancelled
+                    <label style="background-color:rgb(255, 198, 198); color:black; font-size: medium; border-radius: 8px; padding-left: 12px; padding-right: 12px; padding-top: 12px; padding-bottom: 12px;">
+                        <b>Cancelled</b>
                     </label>
                 {% elif event.published == False %} 
-                    <label style="background-color:rgb(255, 123, 0); font-size: medium; border-radius: 8px; padding-left: 12px; padding-right: 12px; padding-top: 10px; padding-bottom: 10px; color: white;">
-                        Not Published
+                    <label style="background-color:rgb(253, 197, 145); color:black; font-size: medium; border-radius: 8px; padding-left: 12px; padding-right: 12px; padding-top: 12px; padding-bottom: 12px;">
+                        <b>Not Published</b>
                     </label>
                 {% elif event.published == True %} 
-                    <label style="background-color:green; font-size: medium; color:white; border-radius: 6px; padding-left: 12px; padding-right: 12px; padding-top: 10px; padding-bottom: 10px;">
-                        Published
+                    <label style="background-color:rgb(180, 255, 177); color:black; font-size: medium; border-radius: 8px; padding-left: 12px; padding-right: 12px; padding-top: 12px; padding-bottom: 12px;">
+                        <b>Published</b>
                     </label>
                 {% endif %}
             </div>
-            <div class="float-left">
+            <div >
                 {% if event.has_ended %}
-                    <label style="margin-left: 20px; background-color:rgb(88, 88, 88); color:white; font-size: medium; border-radius: 8px; padding-left: 12px; padding-right: 12px; padding-top: 10px; padding-bottom: 10px;">
+                    <label style="margin-left: 20px; background-color:rgb(177, 177, 177); color:black; font-size: medium; border-radius: 8px; padding-left: 12px; padding-right: 12px; padding-top: 12px; padding-bottom: 12px;">
                         Ended
                     </label>
                 {% endif %}
             </div>
 
-            <div id="event-published-status-btn" class="float-right">
+            <div id="event-published-status-btn" style="padding-left: 20px">
                 {% if event.published == False %} 
-                    <a class="btn btn-primary" data-toggle="modal" data-target="#event-publish-modal" role="button">
+                    <a class="btn btn-primary" data-toggle="modal" data-target="#event-publish-modal" role="button" style="color:white; font-size: medium; border-radius: 8px; padding-left: 12px; padding-right: 12px; padding-top: 10px; padding-bottom: 10px;">
                         Publish event
                     </a>
                 {% elif event.published == True and event.is_cancelled == False %}
-                    <a class="btn btn-primary" data-toggle="modal" data-target="#event-cancel-modal" role="button">
+                    <a class="btn btn-primary" data-toggle="modal" data-target="#event-cancel-modal" role="button" style="color:white; font-size: medium; border-radius: 8px; padding-left: 12px; padding-right: 12px; padding-top: 10px; padding-bottom: 10px;">
                         Cancel event
-                    </a>                
+                    </a>
                 {% endif %}
             </div>
-            <br>
+
+            {% if event.published %}
+                <div style="padding-left: 10px">
+                    <a href="{{ event.get_absolute_url }}" class="btn btn-primary" style="color:white; font-size: medium; border-radius: 8px; padding-left: 12px; padding-right: 12px; padding-top: 10px; padding-bottom: 10px;">
+                        View public page 
+                    </a>
+                </div>
+            {% endif %}
+
         </div>
 
-        <!-- TODO: add breakpoint for these two columns to stack when mobile phone used -->
+        <br>
+
         <!-- Key Data Counts -->
         <div class="row" style="display: grid; grid-template-columns: 50% 50%; padding-left: 15px;">
 
@@ -128,33 +141,35 @@
                     <div>
                         
                         <!-- Other Reasons for Withdrawing -->
-                        <div class="panel-group">
-                            <div class="panel panel-default">
-                                <div class="panel-heading">
-                                    <div class="panel-title">
-                                        <a data-toggle="collapse" href="#other-reason-for-withdrawing-counts">
-                                            <b>Other:</b> {{event.reasons_for_withdrawing_counts.other}}
-                                        </a>
-                                    </div>
+
+                        <details style="margin-right: 20px; margin-top: 10px;">
+                            <summary>Other ({{event.reasons_for_withdrawing_counts.other}})</summary>
+                            {% if manage_event_details_form %}
+                                <div style="margin-left: 50px; margin-right: 50px; margin-top: 20px; margin-bottom: 20px;">
+                                    {% for reason in event.other_reasons_for_withdrawing %}
+                                        <div>
+                                            <li>{{reason}}</li>
+                                        </div>
+                                    {% endfor %}
                                 </div>
-                                <div id="other-reason-for-withdrawing-counts" class="panel-collapse collapse">
-                                    <div class="panel-body">
-                                        <ul>
-                                            {% for reason in event.other_reasons_for_withdrawing %}
-                                                <div>
-                                                    <li>{{reason}}</li>
-                                                </div>
-                                            {% endfor %}
-                                        </ul>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+                            {% endif %}        
+                        </details>
+
                     </div>
                 </div>
             </div>
         </div>
 
+        <br>
+
+        <!-- TODO: add options for external and invite only -->
+        {% if event.registration_type == 1 %}
+            <i>This event's registration type is "register" which means that participants' event registrations are <b>automatically approved</b>.</i>
+        {% elif event.registration_type == 2 %}              
+            <i>This event's registration type is "apply" which means that you have to <b>manually approve</b> each event participant <b>before</b> they can attend.</i>
+        {% endif %}
+
+        <br>
         <br>
 
         <!-- Event Details -->
@@ -198,16 +213,51 @@
 
                     {% if not is_free %}
                     <!-- Bulk mark all participants as paid -->
-                        <a class="btn btn-success" href="{% url 'events:mark_all_participants_as_paid' event_pk %}" role="button">
+                        <a class="btn btn-primary" href="{% url 'events:mark_all_participants_as_paid' event_pk %}" role="button">
                             Mark all participants as paid
                         </a>
+                        <br>
+                        <br>
                     {% endif %}
 
-                    {% for application in event_applications %}
-                    <div>
-                        <a href="{% url 'events:manage_event_application' application.event.pk application.pk %}" role="button">{{application}}</a>
-                    </div>
-                    {% endfor %}
+                    <b>Pending event applications</b>
+                    {% if pending_event_applications.count > 0 %}
+                        {% for application in pending_event_applications %}
+                        <div>
+                            <a href="{% url 'events:manage_event_application' application.event.pk application.pk %}" role="button">{{application}}</a>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <br>
+                        None
+                    {% endif %}
+
+                    <br>
+                    <b>Approved event applications</b>
+                    {% if approved_event_applications.count > 0 %}
+                        {% for application in approved_event_applications %}
+                        <div>
+                            <a href="{% url 'events:manage_event_application' application.event.pk application.pk %}" role="button">{{application}}</a>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <br>
+                        None
+                    {% endif %}
+
+                    <br>
+                    <b>Rejected event applications</b>
+                    {% if approved_event_applications.count > 0 %}
+                        {% for application in rejected_event_applications %}
+                        <div>
+                            <a href="{% url 'events:manage_event_application' application.event.pk application.pk %}" role="button">{{application}}</a>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <br>
+                        None
+                    {% endif %}
+
                 {% else %}
                     <p>No event applications</p>
                 {% endif %}    
@@ -218,7 +268,7 @@
         {% if event.published == False %}
             <!-- Event Tickets -->         
             <details>
-                <summary>Create New Event Ticket</summary>
+                <summary>Create New Ticket Type</summary>
                 {% if new_ticket_form %}
                     <div style="margin-left: 50px; margin-right: 50px; margin-top: 20px; margin-bottom: 20px;">
                         <p style="font-style: italic">
@@ -246,12 +296,12 @@
                                 </div>
                                 <div class="column">
                                     <a class="btn btn-primary" style="margin-left: 10px; margin-right: 30px; margin-bottom: 20px;" data-toggle="modal" data-target="#event-update-ticket-modal" role="button" data-url="{% url 'events:update_ticket' event.pk participant_type.pk %}" data-ticket="{{participant_type}}">
-                                        Update Ticket
+                                        Update ticket type
                                     </a>     
                                 </div>
                                 <div class="column">
                                     <a class="btn btn-danger" style="margin-left: 30px; margin-right: 30px; margin-bottom: 20px;" data-toggle="modal" data-target="#event-delete-ticket-modal" role="button" data-url="{% url 'events:delete_ticket' event.pk participant_type.pk %}" data-ticket="{{participant_type}}">
-                                        Delete Ticket
+                                        Delete ticket type
                                     </a>     
                                 </div>
                             </div>
@@ -264,7 +314,7 @@
 
         <!-- Generate Event Applications CSVs -->         
         <details>
-            <summary>Create Event Applications CSVs</summary>
+            <summary>Generate Custom Event Applications Data Spreadsheet</summary>
             {% if applications_csv_builder_form %}
                 <div style="margin-left: 50px; margin-right: 50px; margin-top: 20px; margin-bottom: 20px;">
                     <p style="font-style: italic">
@@ -273,7 +323,7 @@
                     <form method="post" action="{% url 'events:generate_event_applications_csv' event_pk %}">
                         {% csrf_token %}
                         {% crispy applications_csv_builder_form %}
-                        <input class="btn btn-primary" type="submit" value="Generate csv">
+                        <input class="btn btn-primary" type="submit" value="Generate spreadsheet">
                     </form>
                     <br>
                 </div>
@@ -297,9 +347,11 @@
         </details>
 
         <div>
-            <a class="btn btn-success btn-block btn-lg" href="{% url 'events:generate_event_dietary_requirement_counts_csv' event.pk %}" role="button">
-                Dietary Requirements Counts CSV
-            </a>
+            {% if event.published %}
+                <a class="btn btn-primary" href="{% url 'events:generate_event_dietary_requirement_counts_csv' event.pk %}" role="button">
+                    Generate dietary requirements spreadsheet
+                </a>
+            {% endif %}
         </div>
 
     </div>

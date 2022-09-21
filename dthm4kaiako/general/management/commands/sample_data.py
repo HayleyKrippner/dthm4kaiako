@@ -30,7 +30,7 @@ from events.models import (
     Location,
     RegistrationForm,
     # Series,
-    Ticket,
+    TicketType,
     Event,
 )
 # from tests.events.factories import (
@@ -84,14 +84,14 @@ class Command(management.base.BaseCommand):
         print('Dietary requirements created.')
 
         # Create standard ticket types
-        ticket_free_event_staff = Ticket.objects.create(name="Event Staff", price=0.0)
-        ticket_free_teacher = Ticket.objects.create(name="Teacher", price=0.0)
-        # ticket_free_student = Ticket.objects.create(name="Student", price=0.0)
-        ticket_free_facilitator = Ticket.objects.create(name="Facilitator", price=0.0)
-        ticket_paid_event_staff = Ticket.objects.create(name="Event Staff", price=3.0)
-        ticket_paid_teacher = Ticket.objects.create(name="Teacher", price=50.0)
-        ticket_paid_student = Ticket.objects.create(name="Student", price=20.0)
-        ticket_paid_facilitator = Ticket.objects.create(name="Facilitator", price=25.0)
+        ticket_free_event_staff = TicketType.objects.create(name="Event Staff", price=0.0)
+        ticket_free_teacher = TicketType.objects.create(name="Teacher", price=0.0)
+        # ticket_free_student = TicketType.objects.create(name="Student", price=0.0)
+        ticket_free_facilitator = TicketType.objects.create(name="Facilitator", price=0.0)
+        ticket_paid_event_staff = TicketType.objects.create(name="Event Staff", price=3.0)
+        ticket_paid_teacher = TicketType.objects.create(name="Teacher", price=50.0)
+        ticket_paid_student = TicketType.objects.create(name="Student", price=20.0)
+        ticket_paid_facilitator = TicketType.objects.create(name="Facilitator", price=25.0)
         print('Common tickets created.')
 
         # Create a selection of entities
@@ -448,7 +448,7 @@ class Command(management.base.BaseCommand):
                 'Connecting and reconnecting with colleagues across Aotearoa\n\n'
                 'Engaging with a team to uncover and bring to light inspirational learning resources\n\n'
                 'Developing programmes of learning that you will confidently take '
-                'into your classroom and use immediately',
+                'into your classroom and use immediately'
             ),
             start=datetime.datetime(2023, 4, 23, 8, 0, 0),
             end=datetime.datetime(2023, 4, 23, 11, 0, 0),
@@ -1504,7 +1504,7 @@ class Command(management.base.BaseCommand):
 
         # Event - register - in person and costs
         event_18_register_physical_costs_future = Event.objects.create(
-            name="Webinar - How to really get started with Physical Computing",
+            name="How to really get started with Physical Computing",
             description=(
                 'Uai started out teaching Physical Computing because he doesn\'t say '
                 'no to his students ideas. He’ll share his experiences and discoveries '
@@ -1841,13 +1841,13 @@ class Command(management.base.BaseCommand):
         # print('Admin account set as event staff for all events')
 
         # # Create common participant types
-        # staff_ticket=Ticket.objects.create(name="Event Staff", price=0.0)
+        # staff_ticket=TicketType.objects.create(name="Event Staff", price=0.0)
         # staff_ticket.save()
-        # teacher_ticket=Ticket.objects.create(name="Teacher", price=0.0)
+        # teacher_ticket=TicketType.objects.create(name="Teacher", price=0.0)
         # teacher_ticket.save()
-        # student_ticket=Ticket.objects.create(name="Student", price=0.0)
+        # student_ticket=TicketType.objects.create(name="Student", price=0.0)
         # student_ticket.save()
-        # facilitator_ticket=Ticket.objects.create(name="Facilitator", price=0.0)
+        # facilitator_ticket=TicketType.objects.create(name="Facilitator", price=0.0)
         # facilitator_ticket.save()
 
         # # Tickets

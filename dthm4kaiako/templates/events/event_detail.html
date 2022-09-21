@@ -17,13 +17,6 @@
                 Edit event
             </a>
         {% endif %}
-
-        <!-- TODO: allow for event staff to have access too - just admin so far -->
-        {% if perms.events %}
-            <a href="{% url 'events:event_management' event.pk %}" class="btn btn-sm btn-secondary float-right" style="margin-left: 10px">
-                Manage event 
-            </a>
-        {% endif %}
         </div>
 
         {% for organiser in organisers %}
@@ -47,6 +40,14 @@
 
 {% block content_container %}
     <div class="col-12 col-md-8 order-2 order-md-1">
+        {% if is_event_staff %}
+            <div style="padding-bottom: 40px;">
+                <a href="{% url 'events:event_management' event.pk %}" class="btn btn-primary float-left">
+                    Manage event 
+                </a>
+            </div>
+            <br>
+        {% endif %}
         {% if event.accessible_online %}
             {% include "events/badges/online.html" %}
         {% endif %}
@@ -54,17 +55,20 @@
         <p class="mb-0"><strong>Ends:</strong> {{ event.end|date:"g:i a l j F, Y" }}</p>
         <p class="mb-0">
             <strong>Cost: </strong>
-                {% if event.price == 0 %}
+                {% if event.is_free %}
                     Free!
                 {% else %}
                     Attendance fee applies
-                    {{ event.price }}
                 {% endif %}
         </p>
 
         <div class="d-flex flex-row">
+
             <div class="pr-1"><strong>Location{{ locations|pluralize }}:</strong></div>
             <div class="d-flex flex-wrap">
+                {% if locations.count == 0 %}
+                    None 
+                {% endif %}
                 {% for location in locations %}
                     <div class="mr-5 mb-3">
                         <a href="{{ location.get_absolute_url }}">
