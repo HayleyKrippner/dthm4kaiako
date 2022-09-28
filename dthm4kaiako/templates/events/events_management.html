@@ -5,7 +5,7 @@
 {% load humanize %}
 
 {% block page_heading %}
-    <h1>Event management hub</h1>
+    <h1>Events management</h1>
 {% endblock page_heading %}
 
 {% block content %}
@@ -20,7 +20,15 @@
             {% if event_csv_builder_form %}
                 <div style="margin-left: 50px; margin-right: 50px; margin-top: 20px; margin-bottom: 20px;">
                     <p style="font-style: italic">
-                        Select the fields you wish to include in the CSV
+                        <b>Select the fields you wish to include in the spreadsheet</b>
+                    </p>
+                    <p style="font-style: italic">
+                        Examples of spreadsheets to generate are:
+                        <ul>
+                            <li>Upcoming event dates</li>
+                            <li>Online events</li>
+                            <li>Catered events</li>
+                          </ul>
                     </p>
                     <form method="post" action="{% url 'events:generate_event_csv' %}">
                         {% csrf_token %}

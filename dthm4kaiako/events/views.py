@@ -1,4 +1,4 @@
-"""Views for events application."""
+"""Views for events registration."""
 
 # from turtle import heading
 from django.views import generic
@@ -6,14 +6,14 @@ from django.utils.timezone import now
 from django_filters.views import FilterView
 from utils.mixins import RedirectToCosmeticURLMixin
 from events.models import (
-    DeletedEventApplication,
+    DeletedEventRegistration,
     Event,
     Location,
-    EventApplication,
+    EventRegistration,
     Address,
     RegistrationForm,
     Series,
-    TicketType
+    ParticipantType
 )
 from users.models import (
     DietaryRequirement,
@@ -23,21 +23,21 @@ from users.models import (
 from events.filters import UpcomingEventFilter, PastEventFilter
 from events.utils import create_filter_helper, organise_schedule_data
 from .forms import (
-    EventApplicationForm,
+    EventRegistrationForm,
     TermsAndConditionsForm,
     BillingDetailsForm,
-    WithdrawEventApplicationForm,
-    ManageEventApplicationForm,
+    WithdrawEventRegistrationForm,
+    ManageEventRegistrationForm,
     ManageEventDetailsForm,
     ManageEventRegistrationFormDetailsForm,
     BuilderFormForEventsCSV,
-    BuilderFormForEventApplicationsCSV,
+    BuilderFormForEventRegistrationsCSV,
     ParticipantTypeForm,
-    TicketTypeForm,
+    ParticipantTypeCreationForm,
     ContactParticipantsForm,
     ManageEventDetailsReadOnlyForm,
     ManageEventRegistrationFormDetailsReadOnlyForm,
-    ManageEventApplicationReadOnlyForm,
+    ManageEventRegistrationReadOnlyForm,
 )
 from django.shortcuts import render, redirect
 from users.forms import UserUpdateDetailsForm
@@ -54,6 +54,11 @@ from django.core.mail import send_mail
 from events.utils import can_view_event_management_content
 
 NON_EVENT_STAFF_ACCESS_MESSAGE = "Sorry, {1}, you are not a staff member of \"{2}\"."
+
+PRIVACY_STATEMENT = (
+    "PRIVACY STATEMENT: We care about your privacy. Only the necessary information " +
+    "is collected for event organisers to run this event."
+)
 
 
 class HomeView(generic.TemplateView):
@@ -147,23 +152,23 @@ class EventDetailView(RedirectToCosmeticURLMixin, generic.DetailView):
         """
         return Event.objects.filter(published=True).prefetch_related('locations')
 
-    def does_application_exist(self, user):
-        """Determine if the user has submitted an application to attend the event.
+    def does_registration_exist(self, user):
+        """Determine if the user has submitted an registration to attend the event.
 
         The user must also be logged in to see if they have.
 
         Returns:
-            True if the user has an application and is logged in, otherwise False.
+            True if the user has an registration and is logged in, otherwise False.
         """
-        return EventApplication.objects.filter(event=self.object.pk, user=user).exists() and user.is_authenticated
+        return EventRegistration.objects.filter(event=self.object.pk, user=user).exists() and user.is_authenticated
 
-    def get_application_pk(self, user):
-        """Return the primary key of the user's event application of the event."""
-        event_application_pk = 0
-        if EventApplication.objects.filter(event=self.object.pk, user=user).exists():
-            event_application = EventApplication.objects.get(event=self.object.pk, user=user)
-            event_application_pk = event_application.pk
-        return event_application_pk
+    def get_registration_pk(self, user):
+        """Return the primary key of the user's event registration of the event."""
+        event_registration_pk = 0
+        if EventRegistration.objects.filter(event=self.object.pk, user=user).exists():
+            event_registration = EventRegistration.objects.get(event=self.object.pk, user=user)
+            event_registration_pk = event_registration.pk
+        return event_registration_pk
 
     def get_context_data(self, **kwargs):
         """Provide the context data for the event view.
@@ -183,12 +188,12 @@ class EventDetailView(RedirectToCosmeticURLMixin, generic.DetailView):
         user = self.request.user
 
         if user.is_authenticated:
-            if self.does_application_exist(user):
-                withdraw_event_application_form = WithdrawEventApplicationForm(self.request.POST)
-                context['withdraw_event_application_form'] = withdraw_event_application_form
+            if self.does_registration_exist(user):
+                withdraw_event_registration_form = WithdrawEventRegistrationForm(self.request.POST)
+                context['withdraw_event_registration_form'] = withdraw_event_registration_form
                 context['has_user_applied'] = True
-                context['application_pk'] = self.get_application_pk(user)
-                context['event_application'] = EventApplication.objects.get(event=self.object.pk, user=user)
+                context['registration_pk'] = self.get_registration_pk(user)
+                context['event_registration'] = EventRegistration.objects.get(event=self.object.pk, user=user)
         else:
             context['user_is_authenticated'] = False
 
@@ -202,11 +207,11 @@ class LocationDetailView(RedirectToCosmeticURLMixin, generic.DetailView):
     context_object_name = 'location'
 
 
-class EventApplicationsView(LoginRequiredMixin, generic.ListView):
-    """View for listing all a user's event applications."""
+class EventRegistrationsView(LoginRequiredMixin, generic.ListView):
+    """View for listing all a user's event registrations."""
 
-    template_name = 'events/event_applications.html'
-    model = EventApplication
+    template_name = 'events/event_registrations.html'
+    model = EventRegistration
 
     def get_context_data(self, **kwargs):
         """Provide the context data for the event applictions view.
@@ -219,15 +224,17 @@ class EventApplicationsView(LoginRequiredMixin, generic.ListView):
 
         if user.is_authenticated:
             today = datetime.today()
-            event_applications_upcoming = EventApplication.objects.filter(user=user, event__start__gte=today).order_by(
-                'event__start')
-            event_applications_past = EventApplication.objects.filter(user=user, event__start__lte=today).order_by(
+            event_registrations_upcoming = EventRegistration.objects.filter(
+                user=user,
+                event__start__gte=today
+                ).order_by('event__start')
+            event_registrations_past = EventRegistration.objects.filter(user=user, event__start__lte=today).order_by(
                 '-event__start')
-            context['event_applications_upcoming'] = event_applications_upcoming
-            context['event_applications_past'] = event_applications_past
+            context['event_registrations_upcoming'] = event_registrations_upcoming
+            context['event_registrations_past'] = event_registrations_past
             context['user'] = self.request.user
-            if len(event_applications_upcoming) != 0:
-                context['withdraw_event_application_form'] = WithdrawEventApplicationForm(self.request.POST)
+            if len(event_registrations_upcoming) != 0:
+                context['withdraw_event_registration_form'] = WithdrawEventRegistrationForm(self.request.POST)
         return context
 
     def get_object(self):
@@ -236,73 +243,66 @@ class EventApplicationsView(LoginRequiredMixin, generic.ListView):
 
 
 @login_required
-def delete_application_via_application_page(request, pk):
-    """Allow a user to delete an existing event application from their event applications page."""
-    event_application = EventApplication.objects.get(pk=pk)
-    event = Event.objects.get(pk=event_application.event.pk)
-    user = event_application.user
+def delete_registration_via_registration_page(request, pk):
+    """Allow a user to delete an existing event registration from their event registrations page."""
+    event_registration = EventRegistration.objects.get(pk=pk)
+    event = Event.objects.get(pk=event_registration.event.pk)
+    user = event_registration.user
 
     if request.method == 'POST':
-        create_deleted_event_application(event, request)
-        event_application.delete()
+        create_deleted_event_registration(event, request)
+        event_registration.delete()
         user.save()
-        messages.success(request, f'Your event application for \"{event.name}\" has been withdrawn')
-        return HttpResponseRedirect(reverse("events:event_applications"))
+        messages.success(request, f'Your event registration for \"{event.name}\" has been withdrawn')
+        return HttpResponseRedirect(reverse("events:event_registrations"))
 
-    return render(request, 'events/event_applications.html')
+    return render(request, 'events/event_registrations.html')
 
 
 @login_required
-def delete_application_via_event_page(request, pk):
-    """Allow a user to delete an existing event application from their event applications page."""
-    event_application = get_object_or_404(EventApplication, pk=pk)
-    event = Event.objects.get(pk=event_application.event.pk)
-    user = event_application.user
+def delete_registration_via_event_page(request, pk):
+    """Allow a user to delete an existing event registration from their event registrations page."""
+    event_registration = get_object_or_404(EventRegistration, pk=pk)
+    event = Event.objects.get(pk=event_registration.event.pk)
+    user = event_registration.user
 
     if request.method == 'POST':
-        create_deleted_event_application(event, request)
-        event_application.delete()
+        create_deleted_event_registration(event, request)
+        event_registration.delete()
         user.save()
-        messages.success(request, f'Your event application for \"{event.name}\" has been withdrawn')
+        messages.success(request, f'Your event registration for \"{event.name}\" has been withdrawn')
         return HttpResponseRedirect(reverse("events:event", kwargs={'pk': event.pk, 'slug': event.slug}))
 
     return render(request, 'event_details.html')
 
 
-def create_deleted_event_application(event, request):
-    """Create DeletedEventApplication based on the retrieved deletion reason and/or other reason for deletion."""
-    reason = request.POST['deletion_reason']
-    deleted_event_application = DeletedEventApplication.objects.create(
-        deletion_reason=reason,
-        event=event
+def create_deleted_event_registration(event, request):
+    """Create DeletedEventRegistration based on the retrieved deletion reason and/or other reason for deletion."""
+    reason = request.POST['withdraw_reason']
+    other_reason = request.POST['other_reason_for_deletion']
+    deleted_event_registration = DeletedEventRegistration.objects.create(
+        withdraw_reason=reason,
+        event=event,
+        other_reason_for_deletion=other_reason
     )
-
-    if reason == '7':
-        # Other reason
-        other_reason = request.POST['other_reason_for_deletion']
-        deleted_event_application = DeletedEventApplication.objects.create(
-            deletion_reason=reason,
-            event=event,
-            other_reason_for_deletion=other_reason
-        )
-    deleted_event_application.save()
+    deleted_event_registration.save()
 
 
-def validate_event_application_form(
-            event_application_form,
+def validate_event_registration_form(
+            event_registration_form,
             user_update_details_form,
             terms_and_conditions_form,
             billing_required,
             billing_details_form,
             participant_type_form
         ):
-    """Validate that the event application is valid.
+    """Validate that the event registration is valid.
 
     Also accommodates for the billing section and dietary requirements sections
     to be only validated if they are needed i.e. are rended.
     """
     if (
-            event_application_form.is_valid() and
+            event_registration_form.is_valid() and
             user_update_details_form.is_valid() and
             terms_and_conditions_form.is_valid() and
             (not billing_required or billing_details_form.is_valid()) and
@@ -313,58 +313,58 @@ def validate_event_application_form(
         return False
 
 
-def does_application_exist(user, event):
-    """Return True if event application already exists for the given user and event."""
-    return user.event_applications.filter(event=event).exists()
+def does_registration_exist(user, event):
+    """Return True if event registration already exists for the given user and event."""
+    return user.event_registrations.filter(event=event).exists()
 
 
 @login_required
-def apply_for_event(request, pk):
-    """View for event application/registration form and saving it as an EventApplication.
+def register_for_event(request, pk):
+    """View for event registration/registration form and saving it as an EventRegistration.
 
     request: HTTP request
     pk: event's primary key
 
-    We create a new application if it doesn't already exist, otherwise
-    we allow the user to update their existing application.
+    We create a new registration if it doesn't already exist, otherwise
+    we allow the user to update their existing registration.
     """
     event = Event.objects.get(pk=pk)
     user = request.user
 
-    event_application_form = None
+    event_registration_form = None
     user_update_details_form = None
     billing_details_form = None
     terms_and_conditions_form = None
     billing_required = not event.is_free
     display_catering_info = event.is_catered
     new_billing_email = None
-    current_application = None
+    current_registration = None
     billing_physical_address = None
     billing_email_address = ""
     bill_to = ""
     participant_type_form = None
     new_participant_type = ""
 
-    application_exists = does_application_exist(user, event)
+    registration_exists = does_registration_exist(user, event)
 
     if request.method == 'GET':
         # Prior to creating/updating registration form
 
-        if application_exists:
-            current_application = user.event_applications.get(event=event)
+        if registration_exists:
+            current_registration = user.event_registrations.get(event=event)
             participant_type_form = ParticipantTypeForm(
                 event,
-                initial={'participant_type': current_application.participant_type.pk}
+                initial={'participant_type': current_registration.participant_type.pk}
             )
-            event_application_form = EventApplicationForm(
-                instance=current_application,
+            event_registration_form = EventRegistrationForm(
+                instance=current_registration,
                 initial={'show_emergency_contact_fields': not event.accessible_online}
             )
-            billing_physical_address = current_application.billing_physical_address
-            billing_email_address = current_application.billing_email_address
-            bill_to = current_application.bill_to
+            billing_physical_address = current_registration.billing_physical_address
+            billing_email_address = current_registration.billing_email_address
+            bill_to = current_registration.bill_to
         else:
-            event_application_form = EventApplicationForm(
+            event_registration_form = EventRegistrationForm(
                 initial={'show_emergency_contact_fields': not event.accessible_online}
             )
             participant_type_form = ParticipantTypeForm(event)
@@ -373,8 +373,13 @@ def apply_for_event(request, pk):
             instance=user,
             initial={
                 'show_dietary_requirements': event.is_catered,
-                'show_medical_notes': not event.accessible_online
-            })  # autoload existing event application's user data
+                'show_medical_notes': not event.accessible_online,
+                'email_address': user.email_address,
+                'email_address_confirm': user.email_address,
+                'mobile_phone_number': user.mobile_phone_number,
+                'mobile_phone_number_confirm': user.mobile_phone_number,
+                'how_we_can_best_look_after_you': user.medical_notes
+            })  # autoload existing event registration's user data
 
         if billing_required:
             initial_billing_data = {'billing_email_address': billing_email_address, 'bill_to': bill_to}
@@ -400,22 +405,27 @@ def apply_for_event(request, pk):
             )
 
     elif request.method == 'POST':
-        # If creating a new application or updating existing application (as Django forms don't support PUT)
+        # If creating a new registration or updating existing registration (as Django forms don't support PUT)
 
         user_update_details_form = UserUpdateDetailsForm(
             request.POST,
             instance=user,
             initial={
                 'show_dietary_requirements': event.is_catered,
-                'show_medical_notes': not event.accessible_online
+                'show_medical_notes': not event.accessible_online,
+                'email_address': user.email_address,
+                'email_address_confirm': user.email_address,
+                'mobile_phone_number': user.mobile_phone_number,
+                'mobile_phone_number_confirm': user.mobile_phone_number,
+                'how_we_can_best_look_after_you': user.medical_notes
             }
         )
 
-        if does_application_exist(user, event):
-            current_application = user.event_applications.get(event=event)
-            event_application_form = EventApplicationForm(request.POST, instance=current_application)
+        if does_registration_exist(user, event):
+            current_registration = user.event_registrations.get(event=event)
+            event_registration_form = EventRegistrationForm(request.POST, instance=current_registration)
         else:
-            event_application_form = EventApplicationForm(request.POST)
+            event_registration_form = EventRegistrationForm(request.POST)
 
         participant_type_form = ParticipantTypeForm(event, request.POST)
 
@@ -424,8 +434,8 @@ def apply_for_event(request, pk):
             billing_details_form = BillingDetailsForm(request.POST, initial=initial_billing_data)
         terms_and_conditions_form = TermsAndConditionsForm(request.POST)
 
-        if validate_event_application_form(
-            event_application_form,
+        if validate_event_registration_form(
+            event_registration_form,
             user_update_details_form,
             terms_and_conditions_form,
             billing_required,
@@ -449,12 +459,12 @@ def apply_for_event(request, pk):
             user.save()
 
             new_participant_type_id = participant_type_form.cleaned_data['participant_type']
-            new_participant_type = TicketType.objects.get(pk=int(new_participant_type_id))
-            new_representing = event_application_form.cleaned_data['representing']
-            new_emergency_contact_first_name = event_application_form.cleaned_data['emergency_contact_first_name']
-            new_emergency_contact_last_name = event_application_form.cleaned_data['emergency_contact_last_name']
-            new_emergency_contact_relationship = event_application_form.cleaned_data['emergency_contact_relationship']
-            new_emergency_contact_phone_number = event_application_form.cleaned_data['emergency_contact_phone_number']
+            new_participant_type = ParticipantType.objects.get(pk=int(new_participant_type_id))
+            new_representing = event_registration_form.cleaned_data['representing']
+            new_emergency_contact_first_name = event_registration_form.cleaned_data['emergency_contact_first_name']
+            new_emergency_contact_last_name = event_registration_form.cleaned_data['emergency_contact_last_name']
+            new_emergency_contact_relationship = event_registration_form.cleaned_data['emergency_contact_relationship']
+            new_emergency_contact_phone_number = event_registration_form.cleaned_data['emergency_contact_phone_number']
 
             if billing_required:
                 new_bill_to = billing_details_form.cleaned_data['bill_to']
@@ -478,7 +488,7 @@ def apply_for_event(request, pk):
                 )
                 new_billing_address.save()
 
-                event_application, created = EventApplication.objects.update_or_create(
+                event_registration, created = EventRegistration.objects.update_or_create(
                     user=user, event=event,
                     defaults={
                         'participant_type': new_participant_type,
@@ -492,10 +502,10 @@ def apply_for_event(request, pk):
                         'emergency_contact_phone_number': new_emergency_contact_phone_number,
                     }
                 )
-                event_application.save()
+                event_registration.save()
 
             else:
-                event_application, created = EventApplication.objects.update_or_create(
+                event_registration, created = EventRegistration.objects.update_or_create(
                     user=user,
                     event=event,
                     defaults={
@@ -507,16 +517,16 @@ def apply_for_event(request, pk):
                         'emergency_contact_phone_number': new_emergency_contact_phone_number,
                     }
                 )
-                event_application.save()
+                event_registration.save()
 
-            if application_exists:
-                # Update existing event application
-                messages.success(request, f"Your event application for \"{event.name}\" has been updated")
+            if registration_exists:
+                # Update existing event registration
+                messages.success(request, f"Your event registration for \"{event.name}\" has been updated")
                 # Return to event detail page
                 return HttpResponseRedirect(reverse("events:event", kwargs={'pk': event.pk, 'slug': event.slug}))
 
             else:
-                # Create new event application
+                # Create new event registration
 
                 if event.registration_type == 1:
                     messages.success(
@@ -528,31 +538,32 @@ def apply_for_event(request, pk):
                     messages.success(
                         request,
                         f"Thank you for appling for \"{event.name}\", {user.first_name}. " +
-                        "You application will reviewed shortly by our event staff!"
+                        "You registration will reviewed shortly by our event staff!"
                     )
                 # Return to event detail page
                 return HttpResponseRedirect(reverse("events:event", kwargs={'pk': event.pk, 'slug': event.slug}))
 
     context = {
         'event': event,
-        'event_application_form': event_application_form,
+        'event_registration_form': event_registration_form,
         'user_form': user_update_details_form,
         'billing_details_form': billing_details_form,
         'billing_required': billing_required,
         'terms_and_conditions_form': terms_and_conditions_form,
-        'withdraw_event_application_form': WithdrawEventApplicationForm(request.POST),
+        'withdraw_event_registration_form': WithdrawEventRegistrationForm(request.POST),
         'participant_type_form': participant_type_form,
-        'application_exists': application_exists
+        'registration_exists': registration_exists,
+        'privacy_statement': PRIVACY_STATEMENT
     }
 
     return render(request, 'events/apply.html', context)
 
 
 # TODO: add filter
-class EventsManagementHubView(LoginRequiredMixin, generic.ListView):
+class EventsManagementView(LoginRequiredMixin, generic.ListView):
     """View for a events management."""
 
-    template_name = 'events/events_management_hub.html'
+    template_name = 'events/events_management.html'
 
     def get_context_data(self, **kwargs):
         """Provide the context data for the events management view.
@@ -609,13 +620,13 @@ def manage_event(request, pk):
             request,
             NON_EVENT_STAFF_ACCESS_MESSAGE.format(request.user.first_name, event.name)
         )
-        return HttpResponseRedirect(reverse("events:events_management_hub"))
+        return HttpResponseRedirect(reverse("events:events_management"))
 
-    event_applications = EventApplication.objects.filter(event=event)
+    event_registrations = EventRegistration.objects.filter(event=event)
 
-    pending_event_applications = EventApplication.objects.filter(event=event, status=1)
-    approved_event_applications = EventApplication.objects.filter(event=event, status=2)
-    rejected_event_applications = EventApplication.objects.filter(event=event, status=3)
+    pending_event_registrations = EventRegistration.objects.filter(event=event, status=1)
+    approved_event_registrations = EventRegistration.objects.filter(event=event, status=2)
+    declined_event_registrations = EventRegistration.objects.filter(event=event, status=3)
 
     registration_form = event.registration_form
     context = {
@@ -625,132 +636,132 @@ def manage_event(request, pk):
 
     if request.method == 'GET':
 
-        context['event_applications'] = event_applications
-        context['pending_event_applications'] = pending_event_applications
-        context['approved_event_applications'] = approved_event_applications
-        context['rejected_event_applications'] = rejected_event_applications
+        context['event_registrations'] = event_registrations
+        context['pending_event_registrations'] = pending_event_registrations
+        context['approved_event_registrations'] = approved_event_registrations
+        context['declined_event_registrations'] = declined_event_registrations
 
         if is_in_past_or_cancelled(event):
             context['manage_event_details_form'] = ManageEventDetailsReadOnlyForm(instance=event)
             context['manage_registration_form_details_form'] = ManageEventRegistrationFormDetailsReadOnlyForm(
                 instance=registration_form
             )
-            context['applications_csv_builder_form'] = BuilderFormForEventApplicationsCSV()
+            context['registrations_csv_builder_form'] = BuilderFormForEventRegistrationsCSV()
             context['registration_form_pk'] = registration_form.pk
             context['is_free'] = event.is_free
-            context['participant_types'] = TicketType.objects.filter(events=event).order_by('-price', 'name')
-            context['new_ticket_form'] = TicketTypeForm()
-            context['update_ticket_form'] = TicketTypeForm()
+            context['participant_types'] = ParticipantType.objects.filter(events=event).order_by('-price', 'name')
+            context['new_participant_form'] = ParticipantTypeCreationForm()
+            context['update_participant_form'] = ParticipantTypeCreationForm()
             context['contact_participants_form'] = ContactParticipantsForm()
         else:
             context['manage_event_details_form'] = ManageEventDetailsForm(instance=event)
             context['manage_registration_form_details_form'] = ManageEventRegistrationFormDetailsForm(
                 instance=registration_form
             )
-            context['applications_csv_builder_form'] = BuilderFormForEventApplicationsCSV()
-            context['event_applications'] = event_applications
+            context['registrations_csv_builder_form'] = BuilderFormForEventRegistrationsCSV()
+            context['event_registrations'] = event_registrations
             context['registration_form_pk'] = registration_form.pk
             context['is_free'] = event.is_free
-            context['participant_types'] = TicketType.objects.filter(events=event).order_by('-price', 'name')
-            context['new_ticket_form'] = TicketTypeForm()
-            context['update_ticket_form'] = TicketTypeForm()
+            context['participant_types'] = ParticipantType.objects.filter(events=event).order_by('-price', 'name')
+            context['new_participant_form'] = ParticipantTypeCreationForm()
+            context['update_participant_form'] = ParticipantTypeCreationForm()
             context['contact_participants_form'] = ContactParticipantsForm()
         return render(request, 'events/event_management.html', context)
 
 
-def user_dietary_requirements(application):
+def user_dietary_requirements(registration):
     """Return a list of the participant's user's dietary requirements.
 
-    This is based on the event application submitted by the participant.
+    This is based on the event registration submitted by the participant.
     """
     return format_html_join(
         '\n',
         '<li>{}</li>',
-        application.user.dietary_requirements.values_list('name'),
+        registration.user.dietary_requirements.values_list('name'),
     )
 
 
 @login_required
-def manage_event_application(request, pk_event, pk_application):
-    """View for managing event applications."""
-    event_application = EventApplication.objects.get(pk=pk_application)
-    event = event_application.event
+def manage_event_registration(request, pk_event, pk_registration):
+    """View for managing event registrations."""
+    event_registration = EventRegistration.objects.get(pk=pk_registration)
+    event = event_registration.event
 
     if not can_view_event_management_content(request, event):
         messages.warning(
             request,
             NON_EVENT_STAFF_ACCESS_MESSAGE.format(request.user.first_name, event.name)
         )
-        return HttpResponseRedirect(reverse("events:events_management_hub"))
+        return HttpResponseRedirect(reverse("events:events_management"))
 
     context = {
         'event': event,
         'pk_event': pk_event,
-        'pk_application': pk_application,
-        'event_application': event_application
+        'pk_registration': pk_registration,
+        'event_registration': event_registration
     }
-    context['update_ticket_form'] = TicketTypeForm()
+    context['update_participant_form'] = ParticipantTypeForm(event, request.POST)
 
-    user = User.objects.get(id=event_application.user.pk)
+    user = User.objects.get(id=event_registration.user.pk)
 
     dietary_requirements = DietaryRequirement.objects.filter(users=user)
     educational_entities = Entity.objects.filter(users=user)
 
     if request.method == 'GET':
         if is_in_past_or_cancelled(event):
-            manage_application_form = ManageEventApplicationReadOnlyForm(instance=event_application)
+            manage_registration_form = ManageEventRegistrationReadOnlyForm(instance=event_registration)
         else:
-            manage_application_form = ManageEventApplicationForm(
+            manage_registration_form = ManageEventRegistrationForm(
                 event,
-                initial={'participant_type': event_application.participant_type.pk}
+                initial={'participant_type': event_registration.participant_type.pk}
             )
 
     elif request.method == 'POST':
 
         if is_in_past_or_cancelled(event):
-            manage_application_form = ManageEventApplicationReadOnlyForm(request.POST, instance=event_application)
+            manage_registration_form = ManageEventRegistrationReadOnlyForm(request.POST, instance=event_registration)
         else:
-            manage_application_form = ManageEventApplicationForm(
+            manage_registration_form = ManageEventRegistrationForm(
                 event,
                 request.POST,
             )
 
-        if manage_application_form.is_valid():
+        if manage_registration_form.is_valid():
 
-            updated_staff_comments = manage_application_form.cleaned_data['staff_comments']
-            updated_admin_billing_comments = manage_application_form.cleaned_data['admin_billing_comments']
-            update_paid = manage_application_form.cleaned_data['paid']
-            updated_participant_type = manage_application_form.cleaned_data['participant_type']
+            updated_staff_comments = manage_registration_form.cleaned_data['staff_comments']
+            updated_admin_billing_comments = manage_registration_form.cleaned_data['admin_billing_comments']
+            update_paid = manage_registration_form.cleaned_data['paid']
+            updated_participant_type = manage_registration_form.cleaned_data['participant_type']
 
-            EventApplication.objects.filter(event_id=event_application.pk).update(
+            EventRegistration.objects.filter(pk=pk_registration).update(
                 staff_comments=updated_staff_comments,
                 admin_billing_comments=updated_admin_billing_comments,
                 paid=update_paid,
                 participant_type=updated_participant_type,
             )
-            event_application.save()
+            event_registration.save()
             messages.success(
                 request,
-                f"You have updated {event_application.user.first_name} {event_application.user.last_name}\'s " +
-                "event application"
+                f"You have updated {event_registration.user.first_name} {event_registration.user.last_name}\'s " +
+                "event registration"
             )
             return HttpResponseRedirect(reverse(
-                "events:manage_event_application",
-                kwargs={'pk_event': pk_event, 'pk_application': pk_application}
+                "events:manage_event_registration",
+                kwargs={'pk_event': pk_event, 'pk_registration': pk_registration}
                 ))
         else:
             messages.warning(
                 request,
                 "Please resolve the invalid fields to update " +
-                f"{event_application.user.first_name} {event_application.user.last_name}\'s event application."
+                f"{event_registration.user.first_name} {event_registration.user.last_name}\'s event registration."
             )
 
-    context['manage_application_form'] = manage_application_form
+    context['manage_registration_form'] = manage_registration_form
     context['dietary_requirements'] = dietary_requirements
     context['educational_entities'] = educational_entities
     context['is_event_staff'] = can_view_event_management_content(request, event)
 
-    return render(request, 'events/manage_event_application.html', context)
+    return render(request, 'events/manage_event_registration.html', context)
 
 
 # TODO: add event staff access only
@@ -764,12 +775,12 @@ def manage_event_details(request, pk):
             request,
             NON_EVENT_STAFF_ACCESS_MESSAGE.format(request.user.first_name, event.name)
         )
-        return HttpResponseRedirect(reverse("events:events_management_hub"))
+        return HttpResponseRedirect(reverse("events:events_management"))
 
     context = {
         'event': event,
     }
-    context['update_ticket_form'] = TicketTypeForm()
+    context['update_participant_form'] = ParticipantTypeForm()
 
     if request.method == 'POST':
         manage_event_details_form = ManageEventDetailsForm(request.POST, instance=event)
@@ -780,7 +791,7 @@ def manage_event_details(request, pk):
             updated_show_schedule = manage_event_details_form.cleaned_data['show_schedule']
             updated_featured = manage_event_details_form.cleaned_data['featured']
             updated_registration_type = manage_event_details_form.cleaned_data['registration_type']
-            updated_registration_link = manage_event_details_form.cleaned_data['registration_link']
+            updated_registration_link = manage_event_details_form.cleaned_data['external_event_registration_link']
             updated_start = manage_event_details_form.cleaned_data['start']
             updated_end = manage_event_details_form.cleaned_data['end']
             updated_accessible_online = manage_event_details_form.cleaned_data['accessible_online']
@@ -813,7 +824,7 @@ def manage_event_details(request, pk):
                 show_schedule=updated_show_schedule,
                 featured=updated_featured,
                 registration_type=updated_registration_type,
-                registration_link=updated_registration_link,
+                external_event_registration_link=updated_registration_link,
                 start=updated_start,
                 end=updated_end,
                 accessible_online=updated_accessible_online,
@@ -858,12 +869,12 @@ def manage_event_registration_form_details(request, pk):
             request,
             NON_EVENT_STAFF_ACCESS_MESSAGE.format(request.user.first_name, event.name)
         )
-        return HttpResponseRedirect(reverse("events:events_management_hub"))
+        return HttpResponseRedirect(reverse("events:events_management"))
 
     context = {
         'registration_form': registration_form,
     }
-    context['update_ticket_form'] = TicketTypeForm()
+    context['update_participant_form'] = ParticipantTypeForm()
 
     if request.method == 'POST':
         manage_registration_form_details_form = ManageEventRegistrationFormDetailsForm(
@@ -930,7 +941,7 @@ def generate_event_csv(request):
             request,
             NON_EVENT_STAFF_ACCESS_MESSAGE.format(request.user.first_name, event.name)
         )
-        return HttpResponseRedirect(reverse("events:events_management_hub"))
+        return HttpResponseRedirect(reverse("events:events_management"))
 
     if request.method == 'POST':
         builderFormForEventsCSV = BuilderFormForEventsCSV(request.POST)
@@ -952,8 +963,8 @@ def generate_event_csv(request):
                 first_wrote_titles.append('featured_status')
             if builderFormForEventsCSV.cleaned_data['registration_type']:
                 first_wrote_titles.append('registration_type')
-            if builderFormForEventsCSV.cleaned_data['registration_link']:
-                first_wrote_titles.append('registration_link')
+            if builderFormForEventsCSV.cleaned_data['external_event_registration_link']:
+                first_wrote_titles.append('external_event_registration_link')
             if builderFormForEventsCSV.cleaned_data['start_datetime']:
                 first_wrote_titles.append('start_datetime')
             if builderFormForEventsCSV.cleaned_data['end_datetime']:
@@ -978,14 +989,14 @@ def generate_event_csv(request):
                 first_wrote_titles.append('event_staff')
             if builderFormForEventsCSV.cleaned_data['is_cancelled']:
                 first_wrote_titles.append('is_cancelled')
-            if builderFormForEventsCSV.cleaned_data['approved_applications_count']:
-                first_wrote_titles.append('approved_applications_count')
-            if builderFormForEventsCSV.cleaned_data['pending_applications_count']:
-                first_wrote_titles.append('pending_applications_count')
-            if builderFormForEventsCSV.cleaned_data['rejected_applications_count']:
-                first_wrote_titles.append('rejected_applications_count')
-            if builderFormForEventsCSV.cleaned_data['withdrawn_applications_count']:
-                first_wrote_titles.append('withdrawn_applications_count')
+            if builderFormForEventsCSV.cleaned_data['approved_registrations_count']:
+                first_wrote_titles.append('approved_registrations_count')
+            if builderFormForEventsCSV.cleaned_data['pending_registrations_count']:
+                first_wrote_titles.append('pending_registrations_count')
+            if builderFormForEventsCSV.cleaned_data['declined_registrations_count']:
+                first_wrote_titles.append('declined_registrations_count')
+            if builderFormForEventsCSV.cleaned_data['withdrawn_registrations_count']:
+                first_wrote_titles.append('withdrawn_registrations_count')
 
             response = HttpResponse(content_type='text/csv')
             response['Content-Disposition'] = 'attachment; filename= "{}.csv"'.format(file_name)
@@ -1014,8 +1025,8 @@ def generate_event_csv(request):
                     row.append(event.featured)
                 if builderFormForEventsCSV.cleaned_data['registration_type']:
                     row.append(event.get_event_type_short)
-                if builderFormForEventsCSV.cleaned_data['registration_link']:
-                    row.append(event.registration_link)
+                if builderFormForEventsCSV.cleaned_data['external_event_registration_link']:
+                    row.append(event.external_event_registration_link)
                 if builderFormForEventsCSV.cleaned_data['start_datetime']:
                     row.append(event.start)
                 if builderFormForEventsCSV.cleaned_data['end_datetime']:
@@ -1050,35 +1061,35 @@ def generate_event_csv(request):
                     row.append(staff_string)
                 if builderFormForEventsCSV.cleaned_data['is_cancelled']:
                     row.append(event.is_cancelled)
-                if builderFormForEventsCSV.cleaned_data['approved_applications_count']:
-                    row.append(event.application_status_counts['approved'])
-                if builderFormForEventsCSV.cleaned_data['pending_applications_count']:
-                    row.append(event.application_status_counts['pending'])
-                if builderFormForEventsCSV.cleaned_data['rejected_applications_count']:
-                    row.append(event.application_status_counts['rejected'])
-                if builderFormForEventsCSV.cleaned_data['withdrawn_applications_count']:
-                    row.append(event.application_status_counts['withdrawn'])
+                if builderFormForEventsCSV.cleaned_data['approved_registrations_count']:
+                    row.append(event.registration_status_counts['approved'])
+                if builderFormForEventsCSV.cleaned_data['pending_registrations_count']:
+                    row.append(event.registration_status_counts['pending'])
+                if builderFormForEventsCSV.cleaned_data['declined_registrations_count']:
+                    row.append(event.registration_status_counts['declined'])
+                if builderFormForEventsCSV.cleaned_data['withdrawn_registrations_count']:
+                    row.append(event.registration_status_counts['withdrawn'])
 
                 writer.writerow(row)
 
             return response
 
         else:
-            messages.warning(request, 'Event applications CSV builder form has an invalid field.')
+            messages.warning(request, 'Event registrations CSV builder form has an invalid field.')
 
     context = {
         'event_csv_builder_form': builderFormForEventsCSV,
         'events_user_is_staff_for': Event.objects.filter(event_staff__pk=request.user.pk)
     }
 
-    return render(request, 'events/events_management_hub.html', context)
+    return render(request, 'events/events_management.html', context)
 
 
 # TODO: fix UI bug where the validation error message only disappears if go back out and back to event management page
 # TODO: add staff and admin permissions
 @login_required
-def generate_event_applications_csv(request, pk):
-    """Generate a custom CSV of event applications' data."""
+def generate_event_registrations_csv(request, pk):
+    """Generate a custom CSV of event registrations' data."""
     event = Event.objects.get(pk=pk)
 
     if not can_view_event_management_content(request, event):
@@ -1086,63 +1097,63 @@ def generate_event_applications_csv(request, pk):
             request,
             NON_EVENT_STAFF_ACCESS_MESSAGE.format(request.user.first_name, event.name)
         )
-        return HttpResponseRedirect(reverse("events:events_management_hub"))
+        return HttpResponseRedirect(reverse("events:events_management"))
 
     if request.method == 'POST':
-        builderFormForEventApplicationsCSV = BuilderFormForEventApplicationsCSV(request.POST)
-        if builderFormForEventApplicationsCSV.is_valid():
+        builderFormForEventRegistrationsCSV = BuilderFormForEventRegistrationsCSV(request.POST)
+        if builderFormForEventRegistrationsCSV.is_valid():
 
-            file_name = builderFormForEventApplicationsCSV.cleaned_data['file_name']
+            file_name = builderFormForEventRegistrationsCSV.cleaned_data['file_name']
 
             first_wrote_titles = []
 
-            if builderFormForEventApplicationsCSV.cleaned_data['event_name']:
+            if builderFormForEventRegistrationsCSV.cleaned_data['event_name']:
                 first_wrote_titles.append('event_name')
-            if builderFormForEventApplicationsCSV.cleaned_data['submitted_datetime']:
+            if builderFormForEventRegistrationsCSV.cleaned_data['submitted_datetime']:
                 first_wrote_titles.append('submitted_datetime')
-            if builderFormForEventApplicationsCSV.cleaned_data['updated_datetime']:
+            if builderFormForEventRegistrationsCSV.cleaned_data['updated_datetime']:
                 first_wrote_titles.append('updated_datetime')
-            if builderFormForEventApplicationsCSV.cleaned_data['status']:
+            if builderFormForEventRegistrationsCSV.cleaned_data['status']:
                 first_wrote_titles.append('status')
-            if builderFormForEventApplicationsCSV.cleaned_data['participant_type']:
+            if builderFormForEventRegistrationsCSV.cleaned_data['participant_type']:
                 first_wrote_titles.append('participant_type')
-            if builderFormForEventApplicationsCSV.cleaned_data['staff_comments']:
+            if builderFormForEventRegistrationsCSV.cleaned_data['staff_comments']:
                 first_wrote_titles.append('staff_comments')
-            if builderFormForEventApplicationsCSV.cleaned_data['participant_first_name']:
+            if builderFormForEventRegistrationsCSV.cleaned_data['participant_first_name']:
                 first_wrote_titles.append('participant_first_name')
-            if builderFormForEventApplicationsCSV.cleaned_data['participant_last_name']:
+            if builderFormForEventRegistrationsCSV.cleaned_data['participant_last_name']:
                 first_wrote_titles.append('participant_last_name')
-            if builderFormForEventApplicationsCSV.cleaned_data['dietary_requirements']:
+            if builderFormForEventRegistrationsCSV.cleaned_data['dietary_requirements']:
                 first_wrote_titles.append('dietary_requirements')
-            if builderFormForEventApplicationsCSV.cleaned_data['educational_entities']:
+            if builderFormForEventRegistrationsCSV.cleaned_data['educational_entities']:
                 first_wrote_titles.append('educational_entities')
-            if builderFormForEventApplicationsCSV.cleaned_data['region']:
+            if builderFormForEventRegistrationsCSV.cleaned_data['region']:
                 first_wrote_titles.append('region')
-            if builderFormForEventApplicationsCSV.cleaned_data['mobile_phone_number']:
+            if builderFormForEventRegistrationsCSV.cleaned_data['mobile_phone_number']:
                 first_wrote_titles.append('mobile_phone_number')
-            if builderFormForEventApplicationsCSV.cleaned_data['email_address']:
+            if builderFormForEventRegistrationsCSV.cleaned_data['email_address']:
                 first_wrote_titles.append('email_address')
-            if builderFormForEventApplicationsCSV.cleaned_data['how_we_can_best_accommodate_them']:
+            if builderFormForEventRegistrationsCSV.cleaned_data['how_we_can_best_accommodate_them']:
                 first_wrote_titles.append('how_we_can_best_accommodate_them')
-            if builderFormForEventApplicationsCSV.cleaned_data['representing']:
+            if builderFormForEventRegistrationsCSV.cleaned_data['representing']:
                 first_wrote_titles.append('representing')
-            if builderFormForEventApplicationsCSV.cleaned_data['emergency_contact_first_name']:
+            if builderFormForEventRegistrationsCSV.cleaned_data['emergency_contact_first_name']:
                 first_wrote_titles.append('emergency_contact_first_name')
-            if builderFormForEventApplicationsCSV.cleaned_data['emergency_contact_last_name']:
+            if builderFormForEventRegistrationsCSV.cleaned_data['emergency_contact_last_name']:
                 first_wrote_titles.append('emergency_contact_last_name')
-            if builderFormForEventApplicationsCSV.cleaned_data['emergency_contact_relationship']:
+            if builderFormForEventRegistrationsCSV.cleaned_data['emergency_contact_relationship']:
                 first_wrote_titles.append('emergency_contact_relationship')
-            if builderFormForEventApplicationsCSV.cleaned_data['emergency_contact_phone_number']:
+            if builderFormForEventRegistrationsCSV.cleaned_data['emergency_contact_phone_number']:
                 first_wrote_titles.append('emergency_contact_phone_number')
-            if builderFormForEventApplicationsCSV.cleaned_data['paid']:
+            if builderFormForEventRegistrationsCSV.cleaned_data['paid']:
                 first_wrote_titles.append('paid')
-            if builderFormForEventApplicationsCSV.cleaned_data['bill_to']:
+            if builderFormForEventRegistrationsCSV.cleaned_data['bill_to']:
                 first_wrote_titles.append('bill_to')
-            if builderFormForEventApplicationsCSV.cleaned_data['billing_physical_address']:
+            if builderFormForEventRegistrationsCSV.cleaned_data['billing_physical_address']:
                 first_wrote_titles.append('billing_physical_address')
-            if builderFormForEventApplicationsCSV.cleaned_data['billing_email_address']:
+            if builderFormForEventRegistrationsCSV.cleaned_data['billing_email_address']:
                 first_wrote_titles.append('billing_email_address')
-            if builderFormForEventApplicationsCSV.cleaned_data['admin_billing_comments']:
+            if builderFormForEventRegistrationsCSV.cleaned_data['admin_billing_comments']:
                 first_wrote_titles.append('admin_billing_comments')
 
             response = HttpResponse(content_type='text/csv')
@@ -1152,78 +1163,78 @@ def generate_event_applications_csv(request, pk):
             writer = csv.writer(response)
 
             # Designate the model
-            event_applications = EventApplication.objects.filter(event=event)
+            event_registrations = EventRegistration.objects.filter(event=event)
 
             # Add column headings to the csv file
             writer.writerow(first_wrote_titles)
 
-            for event_application in event_applications:
-                user = event_application.user
+            for event_registration in event_registrations:
+                user = event_registration.user
                 row = []
 
-                if builderFormForEventApplicationsCSV.cleaned_data['event_name']:
-                    row.append(event_application.event.name)
-                if builderFormForEventApplicationsCSV.cleaned_data['submitted_datetime']:
-                    row.append(event_application.submitted)
-                if builderFormForEventApplicationsCSV.cleaned_data['updated_datetime']:
-                    row.append(event_application.updated)
-                if builderFormForEventApplicationsCSV.cleaned_data['status']:
-                    row.append(event_application.status_string_for_user)
-                if builderFormForEventApplicationsCSV.cleaned_data['participant_type']:
-                    row.append(event_application.participant_type)
-                if builderFormForEventApplicationsCSV.cleaned_data['staff_comments']:
-                    row.append(event_application.staff_comments)
-                if builderFormForEventApplicationsCSV.cleaned_data['participant_first_name']:
+                if builderFormForEventRegistrationsCSV.cleaned_data['event_name']:
+                    row.append(event_registration.event.name)
+                if builderFormForEventRegistrationsCSV.cleaned_data['submitted_datetime']:
+                    row.append(event_registration.submitted)
+                if builderFormForEventRegistrationsCSV.cleaned_data['updated_datetime']:
+                    row.append(event_registration.updated)
+                if builderFormForEventRegistrationsCSV.cleaned_data['status']:
+                    row.append(event_registration.status_string_for_user)
+                if builderFormForEventRegistrationsCSV.cleaned_data['participant_type']:
+                    row.append(event_registration.participant_type)
+                if builderFormForEventRegistrationsCSV.cleaned_data['staff_comments']:
+                    row.append(event_registration.staff_comments)
+                if builderFormForEventRegistrationsCSV.cleaned_data['participant_first_name']:
                     row.append(user.first_name)
-                if builderFormForEventApplicationsCSV.cleaned_data['participant_last_name']:
+                if builderFormForEventRegistrationsCSV.cleaned_data['participant_last_name']:
                     row.append(user.last_name)
-                if builderFormForEventApplicationsCSV.cleaned_data['dietary_requirements']:
+                if builderFormForEventRegistrationsCSV.cleaned_data['dietary_requirements']:
                     row.append(convertStringListToOneString([dR.name for dR in user.dietary_requirements.all()]))
-                if builderFormForEventApplicationsCSV.cleaned_data['educational_entities']:
+                if builderFormForEventRegistrationsCSV.cleaned_data['educational_entities']:
                     row.append(convertStringListToOneString(
                         [entity.name for entity in user.educational_entities.all()]
                         )
                     )
-                if builderFormForEventApplicationsCSV.cleaned_data['region']:
+                if builderFormForEventRegistrationsCSV.cleaned_data['region']:
                     row.append(user.get_user_region_display())
-                if builderFormForEventApplicationsCSV.cleaned_data['mobile_phone_number']:
+                if builderFormForEventRegistrationsCSV.cleaned_data['mobile_phone_number']:
                     row.append(user.mobile_phone_number)
-                if builderFormForEventApplicationsCSV.cleaned_data['email_address']:
+                if builderFormForEventRegistrationsCSV.cleaned_data['email_address']:
                     row.append(user.email_address)
-                if builderFormForEventApplicationsCSV.cleaned_data['how_we_can_best_accommodate_them']:
+                if builderFormForEventRegistrationsCSV.cleaned_data['how_we_can_best_accommodate_them']:
                     row.append(user.medical_notes)
-                if builderFormForEventApplicationsCSV.cleaned_data['representing']:
-                    row.append(event_application.representing)
-                if builderFormForEventApplicationsCSV.cleaned_data['emergency_contact_first_name']:
-                    row.append(event_application.emergency_contact_first_name)
-                if builderFormForEventApplicationsCSV.cleaned_data['emergency_contact_last_name']:
-                    row.append(event_application.emergency_contact_last_name)
-                if builderFormForEventApplicationsCSV.cleaned_data['emergency_contact_relationship']:
-                    row.append(event_application.emergency_contact_relationship)
-                if builderFormForEventApplicationsCSV.cleaned_data['emergency_contact_phone_number']:
-                    row.append(event_application.emergency_contact_phone_number)
-                if builderFormForEventApplicationsCSV.cleaned_data['paid']:
-                    row.append(event_application.paid)
-                if builderFormForEventApplicationsCSV.cleaned_data['bill_to']:
-                    row.append(event_application.bill_to)
-                if builderFormForEventApplicationsCSV.cleaned_data['billing_physical_address']:
-                    row.append(event_application.billing_physical_address)
-                if builderFormForEventApplicationsCSV.cleaned_data['billing_email_address']:
-                    row.append(event_application.billing_email_address)
-                if builderFormForEventApplicationsCSV.cleaned_data['admin_billing_comments']:
-                    row.append(event_application.admin_billing_comments)
+                if builderFormForEventRegistrationsCSV.cleaned_data['representing']:
+                    row.append(event_registration.representing)
+                if builderFormForEventRegistrationsCSV.cleaned_data['emergency_contact_first_name']:
+                    row.append(event_registration.emergency_contact_first_name)
+                if builderFormForEventRegistrationsCSV.cleaned_data['emergency_contact_last_name']:
+                    row.append(event_registration.emergency_contact_last_name)
+                if builderFormForEventRegistrationsCSV.cleaned_data['emergency_contact_relationship']:
+                    row.append(event_registration.emergency_contact_relationship)
+                if builderFormForEventRegistrationsCSV.cleaned_data['emergency_contact_phone_number']:
+                    row.append(event_registration.emergency_contact_phone_number)
+                if builderFormForEventRegistrationsCSV.cleaned_data['paid']:
+                    row.append(event_registration.paid)
+                if builderFormForEventRegistrationsCSV.cleaned_data['bill_to']:
+                    row.append(event_registration.bill_to)
+                if builderFormForEventRegistrationsCSV.cleaned_data['billing_physical_address']:
+                    row.append(event_registration.billing_physical_address)
+                if builderFormForEventRegistrationsCSV.cleaned_data['billing_email_address']:
+                    row.append(event_registration.billing_email_address)
+                if builderFormForEventRegistrationsCSV.cleaned_data['admin_billing_comments']:
+                    row.append(event_registration.admin_billing_comments)
 
                 writer.writerow(row)
 
             return response
 
         else:
-            messages.warning(request, 'Event applications CSV builder form has an invalid field.')
+            messages.warning(request, 'Event registrations CSV builder form has an invalid field.')
 
     context = {
         'event': event,
         'event_pk': event.pk,
-        'applications_csv_builder_form': builderFormForEventApplicationsCSV,
+        'registrations_csv_builder_form': builderFormForEventRegistrationsCSV,
     }
 
     return render(request, 'events/event_management.html', context)
@@ -1240,7 +1251,7 @@ def generate_event_dietary_requirement_counts_csv(request, pk):
             request,
             NON_EVENT_STAFF_ACCESS_MESSAGE.format(request.user.first_name, event.name)
         )
-        return HttpResponseRedirect(reverse("events:events_management_hub"))
+        return HttpResponseRedirect(reverse("events:events_management"))
 
     heading_row = ["event name", "dietary requirements", "counts"]
 
@@ -1253,17 +1264,17 @@ def generate_event_dietary_requirement_counts_csv(request, pk):
     writer = csv.writer(response)
 
     # Designate the model
-    event_applications = EventApplication.objects.filter(event=event)
+    event_registrations = EventRegistration.objects.filter(event=event)
 
     # Add column headings to the csv file
     writer.writerow(heading_row)
 
     dietary_reqs_dict = dict()
 
-    event_applications = EventApplication.objects.filter(event=event)
+    event_registrations = EventRegistration.objects.filter(event=event)
 
-    for application in event_applications:
-        dietary_requirements = [dR.name for dR in application.user.dietary_requirements.all()]
+    for registration in event_registrations:
+        dietary_requirements = [dR.name for dR in registration.user.dietary_requirements.all()]
         if frozenset(dietary_requirements) in dietary_reqs_dict:
             dietary_reqs_dict[frozenset(dietary_requirements)] += 1
         else:
@@ -1285,34 +1296,34 @@ def generate_event_dietary_requirement_counts_csv(request, pk):
 # TODO: add staff and admin permissions
 @login_required
 def mark_all_participants_as_paid(request, pk):
-    """Bulk mark all event applications as being paid for for a given event."""
+    """Bulk mark all event registrations as being paid for for a given event."""
     event_id = pk
     event = Event.objects.get(id=event_id)
-    event_applications = [EventApplication.objects.filter(event=event)]
+    event_registrations = [EventRegistration.objects.filter(event=event)]
 
     if not can_view_event_management_content(request, event):
         messages.warning(
             request,
             NON_EVENT_STAFF_ACCESS_MESSAGE.format(request.user.first_name, event.name)
         )
-        return HttpResponseRedirect(reverse("events:events_management_hub"))
+        return HttpResponseRedirect(reverse("events:events_management"))
 
-    for event_application in event_applications:
+    for event_registration in event_registrations:
 
-        application_to_update = EventApplication.objects.filter(id=event_application.id)
-        application_to_update.update(paid=True)
-        application_to_update = EventApplication.objects.get(id=event_application.id)
-        application_to_update.save()
+        registration_to_update = EventRegistration.objects.filter(id=event_registration.id)
+        registration_to_update.update(paid=True)
+        registration_to_update = EventRegistration.objects.get(id=event_registration.id)
+        registration_to_update.save()
 
     messages.success(
         request,
-        f'You have marked all event applications for \"{event.name}\" who have been approved as paid'
+        f'You have marked all event registrations for \"{event.name}\" who have been approved as paid'
     )
     return redirect(reverse('events:event_management', kwargs={'pk': pk}))
 
 
 # TODO: consider - add logic for checking if has close datetime for registrations
-# make sure closing date for application is on details page
+# make sure closing date for registration is on details page
 # TODO: add logic for event detail page saying event registrations opening soon!
 @login_required
 def publish_event(request, pk):
@@ -1326,7 +1337,7 @@ def publish_event(request, pk):
             request,
             NON_EVENT_STAFF_ACCESS_MESSAGE.format(request.user.first_name, event.name)
         )
-        return HttpResponseRedirect(reverse("events:events_management_hub"))
+        return HttpResponseRedirect(reverse("events:events_management"))
 
     if (
         (event.published is False and event.start is None)
@@ -1353,7 +1364,7 @@ def cancel_event(request, pk):
             request,
             NON_EVENT_STAFF_ACCESS_MESSAGE.format(request.user.first_name, event.name)
         )
-        return HttpResponseRedirect(reverse("events:events_management_hub"))
+        return HttpResponseRedirect(reverse("events:events_management"))
 
     event.update(is_cancelled=True)
     updated_event = Event.objects.get(id=event_id)
@@ -1363,7 +1374,7 @@ def cancel_event(request, pk):
 
 
 @login_required
-def create_new_ticket(request, pk):
+def create_new_participant_type(request, pk):
     """Cancel event as event staff."""
     event = Event.objects.get(pk=pk)
 
@@ -1372,118 +1383,121 @@ def create_new_ticket(request, pk):
             request,
             NON_EVENT_STAFF_ACCESS_MESSAGE.format(request.user.first_name, event.name)
         )
-        return HttpResponseRedirect(reverse("events:events_management_hub"))
+        return HttpResponseRedirect(reverse("events:events_management"))
 
     # TODO: validate name and price!
 
     name = request.POST['name']
     price = request.POST['price']
 
-    if TicketType.objects.filter(name=name, price=price).exists():
-        # ticket exists in general
-        if TicketType.objects.filter(name=name, price=price, events=event).exists():
-            # ticket already exists for this event
+    if ParticipantType.objects.filter(name=name, price=price).exists():
+        # participant type exists in general
+        if ParticipantType.objects.filter(name=name, price=price, events=event).exists():
+            # participant type already exists for this event
             messages.warning(
                 request,
-                f"The ticket type with the name of {name} and a price of ${price} already exists for this event."
+                f"The participant type with the name of {name} and a price of ${price} already exists for this event."
             )
         else:
-            # ticket does exist but is not associated with this event yet
-            existing_ticket = TicketType.objects.get(name=name, price=price)
-            event.ticket_types.add(existing_ticket)
+            # participant type does exist but is not associated with this event yet
+            existing_participant_type = ParticipantType.objects.get(name=name, price=price)
+            event.participant_types.add(existing_participant_type)
             event.save()
-            existing_ticket.save()
+            existing_participant_type.save()
             messages.success(
                 request,
-                f"The ticket type with the name of {name} and a price of ${price} has been created."
+                f"The participant type with the name of {name} and a price of ${price} has been created."
             )
     else:
-        # ticket doesn't exist yet in general
-        new_ticket = TicketType.objects.create(name=name, price=price)
-        event.ticket_types.add(new_ticket)
+        # participant doesn't exist yet in general
+        new_participant_type = ParticipantType.objects.create(name=name, price=price)
+        event.participant_types.add(new_participant_type)
         event.save()
-        new_ticket.save()
+        new_participant_type.save()
         messages.success(
             request,
-            f"The ticket type with the name of {name} and a price of ${price} has been created."
+            f"The participant type with the name of {name} and a price of ${price} has been created."
         )
     return redirect(reverse('events:event_management', kwargs={'pk': pk}))
 
 
 @login_required
-def update_ticket(request, event_pk, ticket_pk):
-    """Update event ticket type.
+def update_participant_type(request, event_pk, participant_type_pk):
+    """Update event participant type.
 
-    Note that we cannot immediately update this specific ticket as it may be being used for other events as well.
+    Note that we cannot immediately update this specific participant as it may be being used for other events as well.
     """
     event = Event.objects.get(pk=event_pk)
-    old_ticket = TicketType.objects.get(pk=ticket_pk)
+    old_participant_type = ParticipantType.objects.get(pk=participant_type_pk)
 
     if not can_view_event_management_content(request, event):
         messages.warning(
             request,
             NON_EVENT_STAFF_ACCESS_MESSAGE.format(request.user.first_name, event.name)
         )
-        return HttpResponseRedirect(reverse("events:events_management_hub"))
+        return HttpResponseRedirect(reverse("events:events_management"))
 
-    # check if ticket used by other events
-    if Event.objects.filter(ticket_types=ticket_pk).count() > 1:
-        # ticket used by other events so just remove this event from the list
-        old_ticket.events.remove(event)
-        old_ticket.save()
+    # check if participant used by other events
+    if Event.objects.filter(participant_types=participant_type_pk).count() > 1:
+        # participant used by other events so just remove this event from the list
+        old_participant_type.events.remove(event)
+        old_participant_type.save()
     else:
-        old_ticket.delete()
+        old_participant_type.delete()
 
-    # check if new ticket already exists
-    if TicketType.objects.filter(name=request.POST['name'], price=request.POST['price']).exists():
-        # add the event to the list of events that use the existing "new" ticket
-        new_ticket = TicketType.objects.get(name=request.POST['name'], price=request.POST['price'])
-        new_ticket.events.add(event)
-        new_ticket.save()
+    # check if new participant type already exists
+    if ParticipantType.objects.filter(name=request.POST['name'], price=request.POST['price']).exists():
+        # add the event to the list of events that use the existing "new" participant type
+        new_participant_type = ParticipantType.objects.get(name=request.POST['name'], price=request.POST['price'])
+        new_participant_type.events.add(event)
+        new_participant_type.save()
     else:
-        # "update" ticket by creating new ticket
-        new_ticket = TicketType.objects.create(name=request.POST['name'], price=request.POST['price'])
-        new_ticket.events.add(event)
-        new_ticket.save()
+        # "update" participant by creating new participant type
+        new_participant_type = ParticipantType.objects.create(name=request.POST['name'], price=request.POST['price'])
+        new_participant_type.events.add(event)
+        new_participant_type.save()
 
     messages.success(
         request,
-        f"You have updated the ticket type of {old_ticket.name} (${old_ticket.price}) " +
-        f"to {new_ticket.name} (${new_ticket.price})."
+        f"You have updated the participant type of {old_participant_type.name} (${old_participant_type.price}) " +
+        f"to {new_participant_type.name} (${new_participant_type.price})."
     )
 
     return HttpResponseRedirect(reverse("events:event_management", kwargs={'pk': event.pk}))
 
 
 @login_required
-def delete_ticket(request, event_pk, ticket_pk):
-    """Delete event ticket type.
+def delete_participant_type(request, event_pk, participant_type_pk):
+    """Delete event participant type.
 
-    We cannot immediately delete this specific ticket as it may be being used for other events as well.
+    We cannot immediately delete this specific participant as it may be being used for other events as well.
     """
     event = Event.objects.get(pk=event_pk)
-    ticket = get_object_or_404(TicketType, id=ticket_pk)
+    participant_type = get_object_or_404(ParticipantType, id=participant_type_pk)
 
-    ticket_name = ticket.name
-    ticket_price = ticket.price
+    participant_type_name = participant_type.name
+    participant_type_price = participant_type.price
 
     if not can_view_event_management_content(request, event):
         messages.warning(
             request,
             NON_EVENT_STAFF_ACCESS_MESSAGE.format(request.user.first_name, event.name)
         )
-        return HttpResponseRedirect(reverse("events:events_management_hub"))
+        return HttpResponseRedirect(reverse("events:events_management"))
 
-    if Event.objects.filter(ticket_types=ticket_pk).count() == 1:
-        ticket.delete()
+    if Event.objects.filter(participant_types=participant_type_pk).count() == 1:
+        participant_type.delete()
         event.save()
     else:
-        # ticket used by other events so just remove this event from the list
-        event.ticket_types.remove(ticket)
+        # participant used by other events so just remove this event from the list
+        event.participant_types.remove(participant_type)
         event.save()
-        ticket.save()
+        participant_type.save()
 
-    messages.success(request, f'You have deleted the ticket type of {ticket_name} (${ticket_price})')
+    messages.success(
+        request,
+        f'You have deleted the participant type of {participant_type_name} (${participant_type_price})'
+    )
     return HttpResponseRedirect(reverse("events:event_management", kwargs={'pk': event.pk}))
 
 
@@ -1499,7 +1513,8 @@ def email_participants(request, event_pk):
             request,
             NON_EVENT_STAFF_ACCESS_MESSAGE.format(request.user.first_name, event.name)
         )
-        return HttpResponseRedirect(reverse("events:events_management_hub"))
+        return HttpResponseRedirect(reverse("events:events_management"))
+
     if request.method == 'POST':
         contact_participants_form = ContactParticipantsForm(request.POST)
         if contact_participants_form.is_valid():
@@ -1522,13 +1537,13 @@ def email_participants(request, event_pk):
             custom_message = "event participant"
 
             if (contact_participants_form.cleaned_data['send_to_approved_participants'] is True):
-                applications = EventApplication.objects.filter(event=event, status=approved_status)
-                participants = [application.user for application in applications]
+                registrations = EventRegistration.objects.filter(event=event, status=approved_status)
+                participants = [registration.user for registration in registrations]
                 send_to_emails += [participant.email for participant in participants]
                 custom_message = "approved event participant"
             if (contact_participants_form.cleaned_data['send_to_pending_applicants'] is True):
-                applications = EventApplication.objects.filter(event=event, status=pending_status)
-                participants = [application.user for application in applications]
+                registrations = EventRegistration.objects.filter(event=event, status=pending_status)
+                participants = [registration.user for registration in registrations]
                 send_to_emails += [participant.email for participant in participants]
                 custom_message = "pending event participant"
             if (
@@ -1574,18 +1589,18 @@ def email_participants(request, event_pk):
         'event_pk': event_pk,
     }
     registration_form = event.registration_form
-    event_applications = EventApplication.objects.filter(event=event)
+    event_registrations = EventRegistration.objects.filter(event=event)
     context['manage_event_details_form'] = ManageEventDetailsForm(instance=event)
     context['manage_registration_form_details_form'] = ManageEventRegistrationFormDetailsForm(
         instance=registration_form
         )
-    context['applications_csv_builder_form'] = BuilderFormForEventApplicationsCSV()
-    context['event_applications'] = event_applications
+    context['registrations_csv_builder_form'] = BuilderFormForEventRegistrationsCSV()
+    context['event_registrations'] = event_registrations
     context['registration_form_pk'] = registration_form.pk
     context['is_free'] = event.is_free
-    context['participant_types'] = TicketType.objects.filter(events=event).order_by('-price', 'name')
-    context['new_ticket_form'] = TicketTypeForm()
-    context['update_ticket_form'] = TicketTypeForm()
+    context['participant_types'] = ParticipantType.objects.filter(events=event).order_by('-price', 'name')
+    context['new_participant_form'] = ParticipantTypeCreationForm()
+    context['update_participant_form'] = ParticipantTypeCreationForm()
     context['contact_participants_form'] = contact_participants_form
     # use the existing form in order to load the valid inputs in the form whilst showing errors
 

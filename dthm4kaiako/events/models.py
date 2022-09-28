@@ -1,4 +1,4 @@
-"""Models for events application."""
+"""Models for events registration."""
 
 from django.db import models
 from django.contrib.gis.db import models as geomodels
@@ -125,36 +125,36 @@ class Series(models.Model):
         verbose_name_plural = "series"
 
 
-class TicketType(models.Model):
-    """Model for event ticket.
+class ParticipantType(models.Model):
+    """Model for event participant type.
 
     For example: event staff, facilitator, teacher, student, with
     costs e.g. $0 for free or say $40 to attend.
 
-    This is usually for events that require event applications to be approved i.e. paid
+    This is usually for events that require event registrations to be approved i.e. paid
     """
 
     name = models.CharField(max_length=200, help_text="Participant type e.g. teacher, event staff")
-    price = models.FloatField(help_text="Cost for participant to attend in NZD")
+    price = models.FloatField(help_text="Cost for participant type to attend in NZD")
 
     class Meta:
         """Meta options for class."""
 
         unique_together = ('name', 'price',)
         ordering = ['name', ]
-        verbose_name_plural = 'ticket type'
+        verbose_name_plural = 'participant type'
 
     def __str__(self):
-        """Text representation of a participant type with their ticket price."""
+        """Text representation of a participant type with their participant price."""
         if self.is_free():
             return f"{self.name} (free)"
         else:
             return f"{self.name} (${'{0:.2f}'.format(self.price)})"
 
     def is_free(self):
-        """Determine whether the event ticket is free or not.
+        """Determine whether the event participant type is free or not.
 
-        Returns True if ticket is free.
+        Returns True if participant type is free.
         """
         return self.price == 0.0
 
@@ -177,9 +177,9 @@ class Event(models.Model):
     REGISTRATION_TYPE_EXTERNAL = 3
     REGISTRATION_TYPE_INVITE_ONLY = 4
     REGISTRATION_TYPE_CHOICES = (
-        (REGISTRATION_TYPE_REGISTER, _('Register to attend event')),
-        (REGISTRATION_TYPE_APPLY, _('Apply to attend event')),
-        (REGISTRATION_TYPE_EXTERNAL, _('Visit event website')),
+        (REGISTRATION_TYPE_REGISTER, _('Register to attend event (Registrations auto-approved)')),
+        (REGISTRATION_TYPE_APPLY, _('Register to attend event (Manual approval required)')),
+        (REGISTRATION_TYPE_EXTERNAL, _('Visit external event website')),
         (REGISTRATION_TYPE_INVITE_ONLY, _('This event is invite only')),
     )
     registration_type = models.PositiveSmallIntegerField(
@@ -188,24 +188,24 @@ class Event(models.Model):
         help_text="Register type events will not require you to " +
         "approve or reject event reigstration forms.\n\n" +
         "Apply type events require you to approve event " +
-        "applications in order for a participant to be attending this event."
+        "registrations in order for a participant to be attending this event."
     )
-    registration_link = models.URLField(
+    external_event_registration_link = models.URLField(
         blank=True,
         null=True,
         help_text=(
             "Only required when the event registration type is 'external'. \n\n" +
             "This is a link to an external location that "
-            "will gather event applications' information e.g. Google Form"
+            "will gather event registrations' information e.g. Google Form"
         )
     )
-    # TODO: Cannot be null if published or event applications exist
+    # TODO: Cannot be null if published or event registrations exist
     start = models.DateTimeField(
         blank=True,
         null=True,
         help_text=DATETIME_HELP_TEXT
     )
-    # TODO: Cannot be null if published or event applications exist
+    # TODO: Cannot be null if published or event registrations exist
     end = models.DateTimeField(
         blank=True,
         null=True,
@@ -267,11 +267,11 @@ class Event(models.Model):
         help_text='This event has been cancelled'
     )
     # TODO: add defaults that are free upon creation
-    ticket_types = models.ManyToManyField(
-        TicketType,
+    participant_types = models.ManyToManyField(
+        ParticipantType,
         related_name='events',
         blank=True,
-        help_text="The ticket types that will be available for event participants to choose from."
+        help_text="The participant types that will be available for event participants to choose from."
     )
 
     # TODO: Add validation that if no locations, then accessible_online must be True
@@ -332,6 +332,18 @@ class Event(models.Model):
         return self.registration_type in {self.REGISTRATION_TYPE_APPLY, self.REGISTRATION_TYPE_REGISTER}
 
     @property
+    def get_registration_button_text(self):
+        """Return True if the event is an event which users can register or apply to attend.
+
+        Returns:
+            Boolean if the event is an event which users can register or apply to attend.
+        """
+        if self.registration_type == self.REGISTRATION_TYPE_APPLY:
+            return "Apply to attend event"
+        elif self.registration_type == self.REGISTRATION_TYPE_REGISTER:
+            return "Register to attend event"
+
+    @property
     def has_ended(self):
         """Return True if event has ended.
 
@@ -362,13 +374,13 @@ class Event(models.Model):
 
         Returns:
             String.
-            'Update application form' if the registration type is apply.
-            'Update registeration form' if it is register.
+            'Update registration form' if the registration type is apply.
+            'Update registration form' if it is register.
         """
         if self.registration_type == self.REGISTRATION_TYPE_APPLY:
-            return "Update application form"
+            return "Update registration form"
         elif self.registration_type == self.REGISTRATION_TYPE_REGISTER:
-            return "Update registeration form"
+            return "Update registration form"
 
     @property
     def start_weekday_name(self):
@@ -392,13 +404,13 @@ class Event(models.Model):
         return today.isoformat() > one_week_prior_event_start.isoformat()
 
     @property
-    def application_status_counts(self):
-        """Count the number of event applications with each of the possible statuses.
+    def registration_status_counts(self):
+        """Count the number of event registrations with each of the possible statuses.
 
         Includes:
             - "Pending" (1)
             - "Approved" (2)
-            - "Rejected" (3)
+            - "Declined" (3)
             - "Withdrawn" (4)
 
         Returns a dictionary of the counts.
@@ -406,46 +418,46 @@ class Event(models.Model):
         status_counts = {
             'pending': 0,
             'approved': 0,
-            'rejected': 0,
+            'declined': 0,
             'withdrawn': 0
         }
-        event_applications = EventApplication.objects.filter(event=self)
+        event_registrations = EventRegistration.objects.filter(event=self)
 
-        for application in event_applications:
+        for registration in event_registrations:
 
-            if application.status == 1:
+            if registration.status == 1:
                 status_string = 'pending'
-            elif application.status == 2:
+            elif registration.status == 2:
                 status_string = 'approved'
-            elif application.status == 3:
-                status_string = 'rejected'
+            elif registration.status == 3:
+                status_string = 'declined'
 
             status_counts[status_string] += 1
 
-        status_counts['withdrawn'] = DeletedEventApplication.objects.filter(event=self).count()
+        status_counts['withdrawn'] = DeletedEventRegistration.objects.filter(event=self).count()
 
         return status_counts
 
     @property
-    def ticket_type_counts(self):
-        """Count the number of event tickets per type."""
-        ticket_type_counts = {}
-        applications = EventApplication.objects.filter(event=self.pk)
+    def participant_type_counts(self):
+        """Count the number of event participants per type."""
+        participant_type_counts = {}
+        registrations = EventRegistration.objects.filter(event=self.pk)
 
-        for ticket in self.ticket_types.all():
-            key_string = str(ticket)
-            ticket_type_counts[key_string] = 0
+        for participant_type in self.participant_types.all():
+            key_string = str(participant_type)
+            participant_type_counts[key_string] = 0
 
-        for application in applications:
-            key_string = str(application.participant_type)
-            if key_string in ticket_type_counts:
-                ticket_type_counts[key_string] += 1
+        for registration in registrations:
+            key_string = str(registration.participant_type)
+            if key_string in participant_type_counts:
+                participant_type_counts[key_string] += 1
 
-        return ticket_type_counts
+        return participant_type_counts
 
     @property
     def reasons_for_withdrawing_counts(self):
-        """Count the number of each reason for an event application to be withdrawn.
+        """Count the number of each reason for an event registration to be withdrawn.
 
         Returns a dictionary of the counts.
         """
@@ -456,38 +468,43 @@ class Event(models.Model):
             'change_of_plans': 0,
             'too_expensive': 0,
             'inconvenient_location': 0,
-            'other': 0
+            'other': 0,
+            'wrong_event': 0,
+            'clash_of_personal_development': 0
         }
-        deleted_event_applications = DeletedEventApplication.objects.filter(event=self)
+        deleted_event_registrations = DeletedEventRegistration.objects.filter(event=self)
 
-        for deleted_application in deleted_event_applications:
+        for deleted_registration in deleted_event_registrations:
 
-            if deleted_application.deletion_reason == 1:
+            if deleted_registration.withdraw_reason == 1:
                 reason_string = 'prefer_not_to_say'
-            elif deleted_application.deletion_reason == 2:
+            elif deleted_registration.withdraw_reason == 2:
                 reason_string = 'illness'
-            elif deleted_application.deletion_reason == 3:
+            elif deleted_registration.withdraw_reason == 3:
                 reason_string = 'not_interested'
-            elif deleted_application.deletion_reason == 4:
+            elif deleted_registration.withdraw_reason == 4:
                 reason_string = 'change_of_plans'
-            elif deleted_application.deletion_reason == 5:
+            elif deleted_registration.withdraw_reason == 5:
                 reason_string = 'too_expensive'
-            elif deleted_application.deletion_reason == 6:
+            elif deleted_registration.withdraw_reason == 6:
                 reason_string = 'inconvenient_location'
-            elif deleted_application.deletion_reason == 7:
+            elif deleted_registration.withdraw_reason == 7:
                 reason_string = 'other'
-
+            elif deleted_registration.withdraw_reason == 8:
+                reason_string = 'wrong_event'
+            elif deleted_registration.withdraw_reason == 9:
+                reason_string = 'clash_of_personal_development'
             reason_counts[reason_string] += 1
 
         return reason_counts
 
     @property
     def other_reasons_for_withdrawing(self):
-        """Return a list of reasons for why event applications were withdrawn for the given event."""
-        deleted_event_applications = DeletedEventApplication.objects.filter(event=self, deletion_reason=7)
+        """Return a list of reasons for why event registrations were withdrawn for the given event."""
+        deleted_event_registrations = DeletedEventRegistration.objects.filter(event=self)
         other_reasons = []
-        for deleted_event_application in deleted_event_applications:
-            other_reasons.append(deleted_event_application.other_reason_for_deletion)
+        for deleted_event_registration in deleted_event_registrations:
+            other_reasons.append(deleted_event_registration.other_reason_for_deletion)
         return other_reasons
 
     def __str__(self):
@@ -500,10 +517,10 @@ class Event(models.Model):
         Raises:
             ValidationError if invalid attributes.
         """
-        if self.registration_type == self.REGISTRATION_TYPE_INVITE_ONLY and self.registration_link:
+        if self.registration_type == self.REGISTRATION_TYPE_INVITE_ONLY and self.external_event_registration_link:
             raise ValidationError(
                 {
-                    'registration_link':
+                    'external_event_registration_link':
                     _('Registration link must be empty when event is set to invite only.')
                 }
             )
@@ -533,12 +550,12 @@ class Event(models.Model):
     def is_free(self):
         """Determine whether the event is free or not.
 
-        This is based on the prices of the event's tickets.
-        If these are all free tickets then the event is considered to be free.
+        This is based on the prices of the event's participants.
+        If these are all free participants then the event is considered to be free.
         """
         free = True
-        for ticket_type in self.ticket_types.all():
-            if ticket_type.price != 0.0:
+        for participant_type in self.participant_types.all():
+            if participant_type.price != 0.0:
                 free = False
         return free
 
@@ -662,16 +679,16 @@ class Address(models.Model):
 # TODO: consider pulling out emergency contact details into separate model
 # TODO: make emergency contact details only mandatory for events that are in
 # person i.e. don't show them for online events and allow them to be empty
-class EventApplication(models.Model):
-    """Model for an event application."""
+class EventRegistration(models.Model):
+    """Model for an event registration."""
 
     PENDING = 1
     APPROVED = 2
-    REJECTED = 3
+    DECLINED = 3
     APPLICATION_STATUSES = (
         (PENDING, _('Pending')),
         (APPROVED, _('Approved')),
-        (REJECTED, _('Rejected')),
+        (DECLINED, _('Declined')),
     )
 
     submitted = models.DateTimeField(auto_now_add=True)  # user does not edit
@@ -681,9 +698,9 @@ class EventApplication(models.Model):
         default=PENDING,
     )
     participant_type = models.ForeignKey(
-        TicketType,
+        ParticipantType,
         on_delete=models.CASCADE,
-        related_name='event_applications',
+        related_name='event_registrations',
         null=True,
         blank=True
     )
@@ -691,19 +708,19 @@ class EventApplication(models.Model):
     user = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
-        related_name='event_applications'
+        related_name='event_registrations'
     )
     representing = models.CharField(
         max_length=300,
         blank=False,
         null=False,
         default='',
-        help_text='e.g. school, organisation, association, myself'
+        help_text='Who will you be repesenting at this event? e.g. school, organisation, association, myself'
         )
     event = models.ForeignKey(
         Event,
         on_delete=models.CASCADE,
-        related_name='event_applications',
+        related_name='event_registrations',
     )
     emergency_contact_first_name = models.CharField(
         max_length=200,
@@ -745,7 +762,7 @@ class EventApplication(models.Model):
     billing_physical_address = models.ForeignKey(
         Address,
         on_delete=models.CASCADE,
-        related_name='event_applications',
+        related_name='event_registrations',
         blank=True,
         null=True,  # since not needed for events that are free
         verbose_name='billing address',
@@ -761,15 +778,15 @@ class EventApplication(models.Model):
         """Meta options for class."""
 
         ordering = ['event', 'status']
-        verbose_name_plural = 'event applications'
+        verbose_name_plural = 'event registrations'
         unique_together = ('event', 'user')
 
     def __str__(self):
-        """Return string representation of an event application."""
-        return f'{self.event.name} - {self.user} - {self.status_string_for_user}'
+        """Return string representation of an event registration."""
+        return f'{self.user} - {self.user.email_address}'
 
     def clean(self):
-        """Validate event application model attributes.
+        """Validate event registration model attributes.
 
         Raises:
             ValidationError if invalid attributes.
@@ -780,7 +797,7 @@ class EventApplication(models.Model):
                 {
                     'emergency_contact_phone_number':
                     _(
-                        'Phone number can include the area code, follow by any '
+                        'Invalid phone number. Phone number can include the area code, follow by any '
                         'number of numbers, - and spaces. E.g. (+64) 123 45 678, 123-45-678, 12345678'
                     )
                 }
@@ -788,7 +805,7 @@ class EventApplication(models.Model):
 
     @property
     def status_string_for_user(self):
-        """Return event application's status as a string.
+        """Return event registration's status as a string.
 
         Returns:
             String to readability.
@@ -799,12 +816,12 @@ class EventApplication(models.Model):
         elif self.status == 2:
             string_form = "Approved"
         elif self.status == 3:
-            string_form = "Rejected"
+            string_form = "Declined"
         return string_form
 
 
-class DeletedEventApplication(models.Model):
-    """Model for a deleted event application.
+class DeletedEventRegistration(models.Model):
+    """Model for a deleted event registration.
 
     It contains the bare minimum information so that there is no identifiable information.
     """
@@ -816,23 +833,27 @@ class DeletedEventApplication(models.Model):
     TOO_EXPENSIVE = 5
     INCONVENIENT_LOCATION = 6
     OTHER = 7
+    WRONG_EVENT = 8
+    CLASH_OF_PERSONAL_DEVELOPMENT = 9
     WITHDRAW_REASONS = (
-        (PREFER_NOT_TO_SAY, _('Prefer not to say')),
-        (ILLNESS, _('Illness')),
-        (NOT_INTERESTED, _('Not interested')),
+        (NOT_INTERESTED, _('No longer interested')),
         (CHANGE_OF_PLANS, _('Change of plans')),
-        (TOO_EXPENSIVE, _('Too expensive / No funding')),
+        (TOO_EXPENSIVE, _('No funding')),
         (INCONVENIENT_LOCATION, _('Inconvient location')),
-        (OTHER, _('Other')),
+        (WRONG_EVENT, _('Wrong event')),
+        (CLASH_OF_PERSONAL_DEVELOPMENT, _('Clash of personal development')),
+        (ILLNESS, _('Illness')),
+        (PREFER_NOT_TO_SAY, _('Prefer not to say')),
+        (OTHER, _('Other'))
     )
     date_deleted = models.DateTimeField(
         auto_now_add=True,
-        help_text="Date the original event application was deleted"
+        help_text="Date the original event registration was deleted"
     )
-    deletion_reason = models.PositiveSmallIntegerField(
+    withdraw_reason = models.PositiveSmallIntegerField(
         choices=WITHDRAW_REASONS,
         default=PREFER_NOT_TO_SAY,
-        help_text="Reason the participant has chosen to withdraw their application."
+        help_text="Reason the participant has chosen to withdraw their registration."
     )
     other_reason_for_deletion = models.CharField(
         max_length=300,
@@ -842,7 +863,7 @@ class DeletedEventApplication(models.Model):
     event = models.ForeignKey(
         Event,
         on_delete=models.CASCADE,
-        related_name='deleted_event_applications',
+        related_name='deleted_event_registrations',
         default=""
     )
 
@@ -853,16 +874,16 @@ class DeletedEventApplication(models.Model):
         that there is a related reason for this (not an empty string),
         otherwise, we change the reason from 'other' to 'prefer not to say'.
         """
-        if self.deletion_reason == 7 and not self.other_reason_for_deletion:
-            self.deletion_reason = 1
-        super(DeletedEventApplication, self).save(*args, **kwargs)
+        if self.withdraw_reason == 7 and not self.other_reason_for_deletion:
+            self.withdraw_reason = 1
+        super(DeletedEventRegistration, self).save(*args, **kwargs)
 
 
 TERMS_AND_CONDITIONS_DEFAULT = (
     "<p>Expenses for travel and accommodation are not covered by the event organisers, and "
     "are to be organised by the attendees themselves. Event organisers may provide details "
     "of available funding options that attendees&rsquo; may apply for.</p> <p>Should you need "
-    "to cancel your application/registration, please let us know as soon as possible and "
+    "to cancel your registration/registration, please let us know as soon as possible and "
     "we&#39;ll remove it. If you do not show to the event without informing us, you may be "
     "liable for a &lsquo;did not show&rsquo; fee. We understand life happens.</p> <p>In the "
     "event of cancellation of the event, we will notify you as soon as possible. It is your "
@@ -917,7 +938,7 @@ class RegistrationForm(models.Model):
         Returns:
             URL as a string.
         """
-        return reverse('events:apply', kwargs={'pk': self.event.pk})
+        return reverse('events:register', kwargs={'pk': self.event.pk})
 
     def __str__(self):
         """Text representation of an event registration form."""
@@ -946,11 +967,11 @@ class RegistrationForm(models.Model):
                 }
             )
 
-        if self.open_datetime is not None and self.event.ticket_types.count() == 0:
+        if self.open_datetime is not None and self.event.participant_types.count() == 0:
             raise ValidationError(
                 {
                     'open_datetime':
-                    _('At least one ticket/participant type is required for registrations to open.')
+                    _('At least one participant type is required for registrations to open.')
                 }
             )
 
@@ -984,7 +1005,7 @@ class EventCSV(models.Model):
     show_schedule = models.BooleanField(default=False)
     featured_status = models.BooleanField(default=False)
     registration_type = models.BooleanField(default=False)
-    registration_link = models.BooleanField(default=False)
+    external_event_registration_link = models.BooleanField(default=False)
     start_datetime = models.BooleanField(default=False)
     end_datetime = models.BooleanField(default=False)
     accessible_online = models.BooleanField(default=False)
@@ -997,10 +1018,10 @@ class EventCSV(models.Model):
     contact_email_address = models.BooleanField(default=False)
     event_staff = models.BooleanField(default=False)
     is_cancelled = models.BooleanField(default=False)
-    approved_applications_count = models.BooleanField(default=False)
-    pending_applications_count = models.BooleanField(default=False)
-    rejected_applications_count = models.BooleanField(default=False)
-    withdrawn_applications_count = models.BooleanField(default=False)
+    approved_registrations_count = models.BooleanField(default=False)
+    pending_registrations_count = models.BooleanField(default=False)
+    declined_registrations_count = models.BooleanField(default=False)
+    withdrawn_registrations_count = models.BooleanField(default=False)
 
     def clean(self):
         """Validate EventCSV model attributes.
@@ -1019,18 +1040,18 @@ class EventCSV(models.Model):
             )
 
 
-# TODO: come up with a way to not have to manually put in the Event Application
-# fields as modifying Event Application will impact this model.
-class EventApplicationsCSV(models.Model):
-    """Model for which fields are included within an Event Application based CSV."""
+# TODO: come up with a way to not have to manually put in the Event Registration
+# fields as modifying Event Registration will impact this model.
+class EventRegistrationsCSV(models.Model):
+    """Model for which fields are included within an Event Registration based CSV."""
 
     event = models.OneToOneField(
         Event,
         on_delete=models.CASCADE,
         primary_key=True,
-        related_name="event_application_csv"
+        related_name="event_registration_csv"
     )
-    file_name = models.CharField(null=False, blank=False, max_length=200, default="event_application_data")
+    file_name = models.CharField(null=False, blank=False, max_length=200, default="event_registration_data")
     event_name = models.BooleanField(default=True)
     submitted_datetime = models.BooleanField(default=False)
     updated_datetime = models.BooleanField(default=False)
@@ -1061,7 +1082,7 @@ class EventApplicationsCSV(models.Model):
     admin_billing_comments = models.BooleanField(default=False)
 
     def clean(self):
-        """Validate EventApplicationsCSV model attributes.
+        """Validate EventRegistrationsCSV model attributes.
 
         Raises:
             ValidationError if invalid attributes.

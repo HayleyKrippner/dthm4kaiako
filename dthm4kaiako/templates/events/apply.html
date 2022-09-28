@@ -18,8 +18,8 @@
 
         <!-- TODO remove after debugging -->
 
-        {% if event_application_form.errors %}
-        {% for field in event_application_form %}
+        {% if event_registration_form.errors %}
+        {% for field in event_registration_form %}
             {% for error in field.errors %} 
                 <div class="alert alert-danger">
                     <strong>{{ error|escape }}</strong>
@@ -68,9 +68,6 @@
         {% endfor %}
         {% endif %}
 
-
-        
-
         <h5>
             <b>Personal Information</b>
         </h5>
@@ -80,6 +77,10 @@
             <br>
             Please ensure that it is correct.
         </div>
+        <div class="pt-md-2 pb-md-2" style="font-style:italic; font-size: medium; color: grey;" >
+            {{privacy_statement}}
+        </div>
+        <br>
 
         {% crispy user_form %}
 
@@ -98,7 +99,7 @@
             {% crispy participant_type_form %}
         {% endif %}
 
-        {% crispy event_application_form %}
+        {% crispy event_registration_form %}
 
         {% if billing_required %}
             <h5>
@@ -116,7 +117,7 @@
         </div>
         {% crispy terms_and_conditions_form %}
 
-        {% if not application_exists %}
+        {% if not registration_exists %}
             <button type="submit" class="btn btn-primary">
                 {{ event.get_event_type_short }}
             </button>

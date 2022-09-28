@@ -1,4 +1,4 @@
-"""URL routing for events application."""
+"""URL routing for events registration."""
 
 from django.urls import path
 from django.views.generic.base import RedirectView
@@ -37,19 +37,19 @@ urlpatterns = [
         name='location'
     ),
     path(
-        'applications/',
-        views.EventApplicationsView.as_view(),
-        name='event_applications'
+        'registrations/',
+        views.EventRegistrationsView.as_view(),
+        name='event_registrations'
     ),
     path(
         'register/<int:pk>/',
-        views.apply_for_event,
-        name='apply'
+        views.register_for_event,
+        name='register'
     ),
     path(
         'manage/',
-        views.EventsManagementHubView.as_view(),
-        name='events_management_hub'
+        views.EventsManagementView.as_view(),
+        name='events_management'
     ),
     path(
         'manage/<int:pk>/',
@@ -57,14 +57,14 @@ urlpatterns = [
         name='event_management'
     ),
     url(
-        r'^delete-via-applications/(?P<pk>[0-9]+)/$',
-        views.delete_application_via_application_page,
-        name='delete_application_via_application_page'
+        r'^delete-via-registrations/(?P<pk>[0-9]+)/$',
+        views.delete_registration_via_registration_page,
+        name='delete_registration_via_registration_page'
     ),
     url(
         r'^delete-via-event/(?P<pk>[0-9]+)/$',
-        views.delete_application_via_event_page,
-        name='delete_application_via_event_page'
+        views.delete_registration_via_event_page,
+        name='delete_registration_via_event_page'
     ),
     url(
         r'^manage-event-details/(?P<pk>[0-9]+)/$',
@@ -77,9 +77,9 @@ urlpatterns = [
         name='manage_event_registration_form_details'
     ),
     url(
-        r'^event/(?P<pk_event>[0-9]+)/manage-event-application/(?P<pk_application>[0-9]+)/$',
-        views.manage_event_application,
-        name='manage_event_application'
+        r'^event/(?P<pk_event>[0-9]+)/manage-event-registration/(?P<pk_registration>[0-9]+)/$',
+        views.manage_event_registration,
+        name='manage_event_registration'
     ),
     path(
         'manage/mark_all_participants_as_paid/<int:pk>/',
@@ -102,9 +102,9 @@ urlpatterns = [
         name='generate_event_csv'
     ),
     path(
-        'manage/generate_event_applications_csv/<int:pk>/',
-        views.generate_event_applications_csv,
-        name='generate_event_applications_csv'
+        'manage/generate_event_registrations_csv/<int:pk>/',
+        views.generate_event_registrations_csv,
+        name='generate_event_registrations_csv'
     ),
     path(
         'manage/generate_event_dietary_requirement_counts_csv/<int:pk>/',
@@ -112,19 +112,19 @@ urlpatterns = [
         name='generate_event_dietary_requirement_counts_csv'
     ),
     path(
-        'manage/create_new_ticket/<int:pk>/',
-        views.create_new_ticket,
-        name='create_new_ticket'
+        'manage/create_new_participant_type/<int:pk>/',
+        views.create_new_participant_type,
+        name='create_new_participant_type'
     ),
     path(
-        'manage/<int:event_pk>/update_ticket/<int:ticket_pk>/',
-        views.update_ticket,
-        name='update_ticket'
+        'manage/<int:event_pk>/update_participant_type/<int:participant_type_pk>/',
+        views.update_participant_type,
+        name='update_participant_type'
     ),
     path(
-        'manage/<int:event_pk>/delete_ticket/<int:ticket_pk>/',
-        views.delete_ticket,
-        name='delete_ticket'
+        'manage/<int:event_pk>/delete_participant_type/<int:participant_type_pk>/',
+        views.delete_participant_type,
+        name='delete_participant_type'
     ),
     path(
         'manage/<int:event_pk>/email_participants/',
